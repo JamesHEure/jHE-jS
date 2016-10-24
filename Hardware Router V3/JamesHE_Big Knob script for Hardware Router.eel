@@ -1,3 +1,8 @@
+//@description GUI for Hardware Router JSFX
+//@version 1.0
+//@author James H Eure
+
+
 function init_ext_option(extname,key,value)
 //saves key and value in reaper-extstate.ini
 local(getvalue,setvalue,value)
@@ -37,16 +42,248 @@ function run_defer(functionname,evalcode)
 
 function run_defer(functionname) ( run_defer(functionname,"") ); 
 
+////////////////////////////////////////////////////////////
+/*                       Mouse stuff                      */
+////////////////////////////////////////////////////////////
+function mouse_click(cap)local(i) 
+  (mouse_cap == cap ? i+=1: i=0; i == 1 ? 1 : 0;);
+function mouse_dblclick (cap)local(i,ii)//to create a double click trigger
+  (mouse_cap==cap  ? (i+=1; i==1 ? ii+=4): (i=0; ii > 0 ? ii-=1); ii >= 5 ? (ii=0; 1):0;);
+function mouse_dblclick (cap,speed)local(i,ii)//sets speed
+  (mouse_cap==cap ? (i+=1; i==1 ? ii+=speed): (i=0; ii > 0 ? ii-=1); ii >= speed+1 ? (ii=0; 1):0;);
+  
+function mouse_in_rect(x,y,w,h)//return 1 if yes, 0 if no
+  (  mouse_x > x && mouse_x < (x+w) && mouse_y > y && mouse_y < (y+h)  ? 1 : 0; );//
+  
+function xymask(x,y)
+  ( x+y*max(gfx_w,gfx_h); );  
+function _xy(x,y)  //sets gfx_x, gfx_y. returns a packed value 
+  ( gfx_x=x; gfx_y=y; xymask(x,y));
+//drag functions for knobs / faders 
+
+function __drag_xaxis(var,cap,inc,spd)local(t,cache_y,cache_x)
+  ( mouse_cap==cap && _gfx_drag==xymask(gfx_x,gfx_y)  ? (
+      mouse_x< cache_x ? t-=1;  t < -spd ? ( var-=inc; cache_x=mouse_x; t=0; );
+      mouse_x> cache_x ? t+=1;  t >  spd ? ( var+=inc; cache_x=mouse_x; t=0; );     
+      cache_y=mouse_y; cache_x=mouse_x;     
+    ); var;             
+  );
+  function __drag_xaxis(var,cap1,inc1,cap2,inc2,spd) 
+    ( mouse_cap == cap1 ? var=__drag_xaxis(var,cap1,inc1,spd); 
+      mouse_cap == cap2 ? var=__drag_xaxis(var,cap2,inc2,spd); var; 
+    );
+  
+   
+function __drag_yaxis(var,cap,inc,spd)local(t,cache_y,cache_x)
+  ( mouse_cap==cap && _gfx_drag==xymask(gfx_x,gfx_y)  ? (
+      mouse_y> cache_y ? t-=1; t < -spd ? ( var-=inc; cache_y=mouse_y; t=0; );
+      mouse_y< cache_y ? t+=1; t >  spd ? ( var+=inc; cache_y=mouse_y; t=0; );
+      cache_y=mouse_y; cache_x=mouse_x;      
+    );
+    var;             
+  );//
+function __drag_yaxis(var,cap1,inc1,cap2,inc2,spd)//2caps
+  (
+     mouse_cap == cap1 ? var=__drag_yaxis(var,cap1,inc1,spd); 
+     mouse_cap == cap2 ? var=__drag_yaxis(var,cap2,inc2,spd);
+     var;              
+  );
+
+  /*****************************************************************************************
+    Use with faders, etc. to prevent other elements from being modified if you drag over
+    another element.
+  *****************************************************************************************/   
+function was_not_was_drag(x,y,w,h,cap1,cap2)local(was_mouse)
+  (
+    //release wasclicked and wasmouse on button release   
+    _gfx_drag==xymask(x,y) && !mouse_cap  ? (_gfx_drag=0; was_mouse=0;);  
+    //if mouse is in box and wasmouse is 0, or if box was clicked, set wasmouse
+    ( mouse_in_rect(x,y,w,h) && was_mouse!=xymask(x,y) ) || _gfx_drag==xymask(x,y) ? was_mouse=xymask(x,y);
+    //if  wasmouse is set and if box is not clicked, set wasdrag
+    was_mouse==xymask(x,y) && !_gfx_drag && (mouse_click(cap1) || mouse_click(cap2))  ? _gfx_drag=xymask(x,y);
+    //reset was mouse
+    was_mouse==xymask(x,y) && !_gfx_drag ? was_mouse=0;  
+    //return packed xy val if clicked or if mouse on  
+    _gfx_drag==xymask(x,y) || (_gfx_drag && was_mouse==xymask(x,y)) ? xymask(x,y): 0;
+  );  
+  
+function was_not_was_drag(x,y,w,h,cap1)//single cap *need to test*
+  (was_not_was_drag(x,y,w,h,cap1,cap1) 
+  );//
+
+////////////////////////////////////////////////////////////
+/*                       GUI ELEMENTS                     */
+////////////////////////////////////////////////////////////
+
+function setcolor(hex)
+  ( gfx_r= ((hex>>16)&255)/255; gfx_g= ((hex>>8)&255)/255; gfx_b= (hex>>0&255)/255;  );
+function setcolor(hex,a)
+  ( setcolor(hex); gfx_a=a; );  
+function setcolor(r,g,b) 
+  ( gfx_r=r/255; gfx_g=g/255; gfx_b=b/255; );
+function setcolor(r,g,b,a)
+  ( setcolor(r,g,b); gfx_a=a );
+
+function edged_grad_h(x,y,w,h,color,edgew,cntr_hl,cl)local(d,thy,hw,bhy,bey)
+(
+  cl*=h;
+  cl|=0;
+  //cl=max(1,cl);
+  d=gfx_a;
+  color != -1 ? setcolor(color);
+  edgew>=h/2? edgew=h/2-1;
+  thy=y+edgew;//top half y
+  hw=(((h-edgew*2)+1)*cl) /2;//top half height
+  bhy=thy+hw;//btm half y
+  bey=bhy+hw;//btm edge y  
+  gfx_gradrect(x,y,w,edgew,gfx_r,gfx_g,gfx_b,0.33*d,0,0,0,0,0,0,0,.66*d/edgew);//top edge  
+  
+  gfx_gradrect(x,y+edgew,w,(cl-edgew),gfx_r,gfx_g,gfx_b,1*d,0,0,0,0,0,0,0,(cntr_hl*d/(cl-edgew)));//top half
+  gfx_gradrect(x,y+cl,w,(h-cl)-edgew,gfx_r,gfx_g,gfx_b,(cntr_hl+1)*d,0,0,0,0,0,0,0,-(cntr_hl*d/(h-cl-edgew)));//btm half  
+      
+  gfx_gradrect(x,y+h-edgew,w,edgew,gfx_r,gfx_g,gfx_b,1*d,0,0,0,0,0,0,0,-(.66*d/edgew));//bottom edge        
+  gfx_a=d;
+);    
+function edged_grad_w(x,y,w,h,color,edge,saturation,gradient_center)local(d,cl,cntr_hl)
+(
+  cntr_hl=saturation;
+  cl=gradient_center;
+  cl*=w; 
+  //cl=max(1,cl)|0;
+  d=gfx_a;
+  color != -1 ? setcolor(color);
+  edgew>=w/2? edgew=w/2-1;  
+  gfx_gradrect(x,y,edgew,h,gfx_r,gfx_g,gfx_b,0.33,0,0,0,.66*d/edgew,0,0,0,0);//left edge
+    
+  gfx_gradrect(x+edgew,y,(cl-edgew),h,gfx_r,gfx_g,gfx_b,1*d,0,0,0,cntr_hl*d/(cl-edgew),0,0,0,0);//left half
+  gfx_gradrect(x+cl,y,(w-edgew-cl),h,gfx_r,gfx_g,gfx_b,(cntr_hl+1)*d,0,0,0,-cntr_hl*d/((w-cl)-(edgew)),0,0,0,0);//right half
+  
+  gfx_gradrect(x+w-edgew,y,edgew,h,gfx_r,gfx_g,gfx_b,1,0,0,0,-.66*d/edgew,0,0,0,0);//right edge
+);
+  
+function gradient_frame(x,y,w,h,color,edge,saturation,gradient_center,thickness)local(ar,ag,ab,_oa,i)
+(
+  _oa=gfx_a;
+  edged_grad_w(x,y+h/2,thickness,1,color,edge,saturation,gradient_center);
+  gfx_a=1;
+  i=0;
+  loop (thickness,
+    _xy(x+i,y+h/2);  
+    gfx_getpixel(ar,ag,ab); gfx_r=ar; gfx_g=ag; gfx_b=ab;
+    gfx_y-=1;
+    gfx_lineto(x+i,y+i);
+    gfx_lineto(x+w-i,y+i); 
+    gfx_lineto(x+w-i,y+h-i); 
+    gfx_lineto(x+i,y+h-i);
+    gfx_lineto(x+i,y+(h/2)+1);
+    i+=1;
+  );
+  gfx_a=_oa;
+);
+function return_gfxsize()
+ (gfx_w+gfx_h*256;);
+ 
+function min_max(var,_min,_max)
+  (var=max(_min,min(_max,var)); var;
+  );// 
+//*converts a variable from one scale to another  
+function variable_scale(var,minval,maxval,tgtmin,tgtmax)
+  (tgtmin*(1-((var-(minval))/(maxval-minval))) + tgtmax*((var-(minval))/(maxval-minval)); 
+  );  
+function img_size_h(file) local(w,h) (gfx_getimgdim(file, w, h); h);
+function img_size_w(file) local(w,h) (gfx_getimgdim(file, w, h); w);
+
+function scale_img_w(file,tgtw) (variable_scale(1,0,img_size_w(file),0,tgtw) );
+function scale_img_h(file,tgth) (variable_scale(1,0,img_size_h(file),0,tgth) );
+
+function __calculate_optimal_increment(tgtinc,varmin,varmax,tgtmin,tgtmax)local(__step,__base)
+(
+ __base = variable_scale(0,varmin,varmax,tgtmin,tgtmax);
+ __step = variable_scale(tgtinc,varmin,varmax,tgtmin,tgtmax);
+ __step-__base;
+);
+
+//blits and rotates a pair of png images. knob, and pointer
+//start and end are in degrees 
+//size == -1 uses the png0 image size
+function png_knob_a(var,vardefault,varmin,varmax,start,end,png0,png1,size,inc)
+local(w,h,tempvalue,scale,scale2,ox,oy)
+(
+  ox=gfx_x; oy=gfx_y;
+  gfx_getimgdim(png0, w, h); //get dimentions of base image
+  size!=-1 ? scale=scale_img_h(png0,size):scale=1;//scale the image
+  scale2=variable_scale(scale,0,img_size_h(png1),0,h);//scale POINTER to match base  
+  _xy(gfx_x-(w*scale)/2,gfx_y-(h*scale)/2);  //set scaled xy positions    
+  mouse_in_rect(gfx_x,gfx_y,(w*scale),(h*scale)) && mouse_dblclick(1) ? var=vardefault; //default var on dblclick
+  tempvalue=variable_scale(var,varmin,varmax,start,end); //scale the input to a tempvalue 
+  //draw and rotate image - if there is no "pointer"  (png1=-1) rotate the whole buisness. 
+  png1>=0 ? (gfx_blit(png0,scale, 0); gfx_blit(png1,scale2,(tempvalue)*0.017453) ):( gfx_blit(png0,scale, (tempvalue)*0.017453) );        
+  was_not_was_drag(gfx_x,gfx_y,(w*scale),(h*scale),1,9); //set drag area  
+  inc=__calculate_optimal_increment(inc,varmin,varmax,start,end); //auto set increment
+  tempvalue=__drag_yaxis(tempvalue,1,inc,9,inc/10,0);//mouse drag enable
+  var=variable_scale(tempvalue,start,end,varmin,varmax); //scale the input back
+  var=min_max(var,varmin,varmax); //clamp to min max slider var
+  _xy(ox,oy);
+  var; //return var
+);
+
+////////////////////////////////////////////////////////////
+/*                       DRAW GUI                         */
+////////////////////////////////////////////////////////////
+
+
+ 
+function background(border,bordercolor,facecolor,facealpha)
+local(x,y,w,h)
+(
+  gfx_a=facealpha; 
+  gfx_w >= gfx_h ? 
+    edged_grad_h(border-1,border-1,gfx_w-border,gfx_h-border,facecolor,5,.5,.5):
+    edged_grad_w(border-1,border-1,gfx_w-border,gfx_h-border,facecolor,25,.5,.5);  
+  gfx_a=1; gradient_frame(0,0,gfx_w,gfx_h,bordercolor,0,6,.9,border); 
+);
+
 function run()
 (
+    //Get where in the chain the Monitor FX is
+    mt=GetMasterTrack(0);    
+    i=0;
+    while(!found) (
+      TrackFX_GetFXName(mt, 0x1000000+i, #GetName);
+      !strcmp(#GetName,#FXNAME) ? ( slot=i; found=1; );
+      !strcmp(#GetName,"") ? (found=1;  slot=-1);
+      i+=1;
+    );
     
-    _dock.refresh_ext_option(#section,"dockstate",gfx_dock(-1));
-    isload=gfx_loadimg(image,"\Effects/jHE_jS/Hardware Router V3.21/bigsilverknobb.png");
+    border=5; bordercolor=0x0C0C0B; facecolor=0x565758; facealpha=.55;
+    //facecolor=0X323234;
+    facecolor=TrackFX_GetParam(mt, 0x1000000+slot, 22, c.minvalOut, c.maxvalOut);
+    facealpha=TrackFX_GetParam(mt, 0x1000000+slot, 23, c.minvalOut, c.maxvalOut);
+    //facealpha*=100; facealpha|0; facealpha/=100;
+    background(border,bordercolor,facecolor,facealpha);
+    
+    _xy(gfx_w/2,gfx_h/2);
+    png0=gfx_loadimg(0,"\Effects/jHE-jS-master/Hardware Router V3/bigsilverknobb.png");
+    png1=gfx_loadimg(1,"\Effects/jHE-jS-master/Hardware Router V3/bigsilverknobbdotb.png");
     
     
+    gfx_a=1;
+      
+    //master volume control    
+    mastervolume=TrackFX_GetParam(mt, 0x1000000+slot, 5, minvalOut, maxvalOut);   
+    vardefault=0; varmin=-60; varmax=18; start=-270; end=90; 
+    size=90; inc=1;    
+    mastervolume=png_knob_a(mastervolume,vardefault,varmin,varmax,start,end,png0,png1,size,inc);
+    TrackFX_SetParam(mt, 0x1000000+slot, 5, mastervolume);    
+    mastervolume=TrackFX_GetParam(mt, 0x1000000+slot, 5, minvalOut, maxvalOut);
+
+    
+    mouse_in_rect(0,0,gfx_w,gfx_h) && mouse_dblclick(2,6) ? 
+      TrackFX_SetOpen(mt, 0x1000000+slot, (abs(TrackFX_GetOpen(mt, 0x1000000+slot))-1)*-1):
+    
+    
+    _dock.refresh_ext_option(#section,"dockstate",gfx_dock(-1));    
     run_defer("run()");
-    //gfx_update();
-    //gfx_getchar() >= 0  ? defer("run()");
 );
 
 
@@ -55,6 +292,7 @@ function run()
 
 
 #section="Big Knob";
+#FXNAME="JS: jHE-jS-master/Hardware Router V3/Hardware Router for Monitor FX V3.3";
 gfx_init("Big Knob", 120, 120 ,init_ext_option(#section,"dockstate",1));
 
 run();

@@ -1,6 +1,4 @@
 @init
-
-
 //                                                                                                              COLOR functions>
 function setcolor(hex)
   ( gfx_r= ((hex>>16)&255)/255; gfx_g= ((hex>>8)&255)/255; gfx_b= (hex>>0&255)/255;  );

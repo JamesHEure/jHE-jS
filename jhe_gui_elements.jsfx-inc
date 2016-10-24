@@ -327,6 +327,7 @@ function __rackface_preset(color,edge,saturation,gradient_center,q,mod_width,mod
     modulated_horizontal_underlay(0,0,560,70,color,edge,saturation,gradient_center,q,mod_width,mod2_width,x2,mod3_width);
     gfx_a=gradient_alpha; edged_grad_h(0,0,560,70,color,edge,saturation,gradient_center); gfx_a=1;
     //setcolor(backfill_color,backfill);// backfill; 
+    color; //return color
 );
 
 function __rackface_preset_list(preset,color)local(color,alpha,i)
@@ -335,24 +336,26 @@ function __rackface_preset_list(preset,color)local(color,alpha,i)
  
   alpha=gfx_a;
   i=0;
-  preset==i ? __rackface_preset(color,2,1,.5,3,0,0,0,0,.01,alpha); i+=1;
-  preset==i ? __rackface_preset(color,2,1.5,.5,3,0,0,0,0,.01,alpha); i+=1;
-  preset==i ? __rackface_preset(color,2,1.5,.5,3,12,80,94,12,.01,alpha); i+=1;
-  preset==i ? __rackface_preset(color,4,.25,.5,2,24,0,280,24,.01,alpha); i+=1;
-  preset==i ? __rackface_preset(color,4,.5,.5,2,80,94,280,80,.01,alpha); i+=1;
+  preset==i ? c=__rackface_preset(color,2,1,.5,3,0,0,0,0,.01,alpha); i+=1;
+  preset==i ? c=__rackface_preset(color,2,1.5,.5,3,0,0,0,0,.01,alpha); i+=1;
+  preset==i ? c=__rackface_preset(color,2,1.5,.5,3,12,80,94,12,.01,alpha); i+=1;
+  preset==i ? c=__rackface_preset(color,4,.25,.5,2,24,0,280,24,.01,alpha); i+=1;
+  preset==i ? c=__rackface_preset(color,4,.5,.5,2,80,94,280,80,.01,alpha); i+=1;
   
   
-  preset==i ? __rackface_preset(0x565758,2,1.5,.5,3,12,80,94,12,.01,1); i+=1;
-  preset==i ? __rackface_preset(0x303739,2,1.5,.5,3,12,80,94,12,.01,1); i+=1;
-  preset==i ? __rackface_preset(0xB0171F,4,.25,.5,2,24,0,280,24,.01,.5); i+=1;
-  preset==i ? __rackface_preset(0x121590,4,.25,.5,2,24,0,280,24,.05,1); i+=1;
-  preset==i ? __rackface_preset(0xB0171F,4,.25,.5,2,24,0,280,24,.05,1); i+=1;
-  preset==i ? __rackface_preset(0xB0171F,4,.25,.5,2,24,0,280,24,.05,1); i+=1;
-  preset==i ? __rackface_preset(0x222222,4,.5,.5,2,80,94,280,80,.01,1); i+=1;
-  preset==i ? __rackface_preset(0x444444,1,.2,.5,4,80,94,280,80,.01,1); i+=1;
-  preset==i ? __rackface_preset(0x333333,1,.2,.5,4,80,94,280,80,.01,1);i+=1;
-  preset==i ? __rackface_preset(0x222222,1,.2,.5,4,80,94,280,80,.01,1); i+=1;
-  preset==i ? __rackface_preset(0x565758,1,.2,.5,4,80,94,280,80,.01,1); i+=1;
+  preset==i ? c=__rackface_preset(0x565758,2,1.5,.5,3,12,80,94,12,.01,1); i+=1;
+  preset==i ? c=__rackface_preset(0x303739,2,1.5,.5,3,12,80,94,12,.01,1); i+=1;
+  preset==i ? c=__rackface_preset(0xB0171F,4,.25,.5,2,24,0,280,24,.01,.5); i+=1;
+  preset==i ? c=__rackface_preset(0x121590,4,.25,.5,2,24,0,280,24,.05,1); i+=1;
+  preset==i ? c=__rackface_preset(0xB0171F,4,.25,.5,2,24,0,280,24,.05,1); i+=1;
+  preset==i ? c=__rackface_preset(0xB0171F,4,.25,.5,2,24,0,280,24,.05,1); i+=1;
+  preset==i ? c=__rackface_preset(0x222222,4,.5,.5,2,80,94,280,80,.01,1); i+=1;
+  preset==i ? c=__rackface_preset(0x444444,1,.2,.5,4,80,94,280,80,.01,1); i+=1;
+  preset==i ? c=__rackface_preset(0x333333,1,.2,.5,4,80,94,280,80,.01,1);i+=1;
+  preset==i ? c=__rackface_preset(0x222222,1,.2,.5,4,80,94,280,80,.01,1); i+=1;
+  preset==i ? c=__rackface_preset(0x565758,1,.2,.5,4,80,94,280,80,.01,1); i+=1;
+  
+  c;
 );
 
 
@@ -372,7 +375,7 @@ function rackface(unit_h,u,position,offset,preset,buffer,tmpbuffer)local(tmpinit
     //backfill=
     // a_test=color;a_a=alpha;
     //setcolor(color);
-    __rackface_preset_list(preset,color);
+    c=__rackface_preset_list(preset,color);
     presetcache=preset*position;
     //presetchange=0;
     //gfx_mode=0;
@@ -401,6 +404,7 @@ function rackface(unit_h,u,position,offset,preset,buffer,tmpbuffer)local(tmpinit
   ); 
   _gfx_sizecache=return_gfxsize();   
   colorcache=color;
+  c;
 );   
 
 function outer_arc(x,y,arc_r,rotation,degf,arc_w,arc_color,var)

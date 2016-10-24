@@ -3,13 +3,12 @@ desc: Hardware Router for MONITOR FX
 author: James HE
   
 options: gmem=HardwareRouter
-import jhe_gui_color.eel
-import jhe_gui_mouse.eel
-import jhe_gui_text.eel
-import jhe_gui_masking.eel
-import jhe_gui_gradients.eel
-import jhe_gui_elements.eel
-
+import jhe_gui_color.jsfx-inc
+import jhe_gui_mouse.jsfx-inc
+import jhe_gui_text.jsfx-inc
+import jhe_gui_masking.jsfx-inc
+import jhe_gui_gradients.jsfx-inc
+import jhe_gui_elements.jsfx-inc
 
 
 slider1: 0 < 0 , 4 , 1 { select , Main , Phones , Aux} >-Master Out / Exclusive Toggle
@@ -37,6 +36,9 @@ slider20: 0 < 0,2,1{OFF,ON, LINKED}> -AUX to Cue
 slider21: 0 < -60 , 12 , 1 >-Main Cue Trim 
 slider22: 0 < -60 , 12 , 1 >-Phones Cue Trim 
 slider23: 0 < -60 , 12 , 1 >-Aux Cue Trim 
+
+slider60: 0 < 0, 10000000 , 1 > -color
+slider61: 0 < 0, 1, .01 > -alpha
 options 
 
 filename:0,bigsilverknobb.png
@@ -242,7 +244,7 @@ function bezel()local(x,y,w,h,gradient_center,gcolor,edge,i,tmpbuffer,u,position
   w=gfx_w; gradient_center=.9; h=gfx_h; color=0x0C0C0C; u=1; position=1;   tmpbuffer=120;
   gradient_frame(x,y,w,h,color,edge,saturation,gradient_center,border);
   setcolor(gcolor,alpha); preset>=5?gfx_a=1;
-  a.rackface(unit_h,u,position,border,preset,126,tmpbuffer);
+  slider60=a.rackface(unit_h,u,position,border,preset,126,tmpbuffer);
   gfx_w>dyn_w ? (
     setcolor(0x000000); 
     i=1;loop (border,gfx_a=.015; gfx_rect(border,border,i,gfx_h-border*2); i+=1;);
@@ -559,10 +561,10 @@ gfx_w >260 ?  (
          cr(); gfx_x=xx;
          preset < 5 ? (
            print_rightjust("face color (Hex):"); gfx_x+=14;
-           usercolor=num_field(usercolor,"00000000","%X",varstr=#); gfx_x+=12;
+           slider60=usercolor=num_field(usercolor,"00000000","%X",varstr=#); gfx_x+=12;
            cr(); gfx_x=xx;
            print_rightjust("face alpha:"); gfx_x+=14;
-           useralpha=num_field(useralpha,"00000000","%.2f",varstr=#); gfx_x+=12;            
+           slider61=useralpha=num_field(useralpha,"00000000","%.2f",varstr=#); gfx_x+=12;            
          ); 
           
        );   
