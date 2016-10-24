@@ -1,0 +1,34 @@
+@init
+
+
+//                                                                                                              COLOR functions>
+function setcolor(hex)
+  ( gfx_r= ((hex>>16)&255)/255; gfx_g= ((hex>>8)&255)/255; gfx_b= (hex>>0&255)/255;  );
+function setcolor(hex,a)
+  ( setcolor(hex); gfx_a=a; );  
+function setcolor(r,g,b) 
+  ( gfx_r=r/255; gfx_g=g/255; gfx_b=b/255; );
+function setcolor(r,g,b,a)
+  ( setcolor(r,g,b); gfx_a=a );
+  
+function pack_rgb()
+  (!gfx_b?gfx_b+=.001;(((gfx_b*255)+(gfx_g*255)*256+(gfx_r*255)*65536)););
+function pack_rgb(r,g,b)
+  (!b?b+=.001;( (b*255) + (g*255)*256 + (r*255)*65536);); 
+function unpack_r(pack)
+  (((pack>>16)&255)/255);
+function unpack_g(pack)
+  (((pack>>8)&255)/255);
+function unpack_b(pack)
+  ((((pack&255))/255));
+function unpack_rgb() local(r,g,b)
+  (gfx_r=unpack_r(pack_rgb()); gfx_g=unpack_g(pack_rgb()); gfx_b=unpack_b(pack_rgb()); );
+function clrstate(cond,ctrue,cfalse)
+  ( cond ? ctrue : cfalse; ); 
+function set_clrstate(cond,ctrue,cfalse)
+  ( cond ? setcolor(ctrue) : setcolor(cfalse); ); 
+function alphastate(cond,atrue,afalse)
+  ( cond ? (gfx_a=atrue; 1 ) : (gfx_a=afalse; 0 ) );
+
+  
+//                                                                                                              COLOR functions|

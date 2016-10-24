@@ -1,0 +1,368 @@
+
+/**************************************************************************
+offscreen drawing, masking
+***************************************************************************/
+
+@init
+
+//depreciated********************
+function __toblack(buffer)local(bw,bh)
+  (  gfx_dest=buffer; //gfx_setimgdim(buffer,0,0);
+     gfx_getimgdim(buffer,bw,bh); setcolor(0,1); gfx_rect(0,0,bw,bh);
+   );  
+//******************************   
+
+function __clearoffscreenbuffer(buffer)
+  (   
+  gfx_dest=buffer;gfx_setimgdim(buffer,-1,-1);  buffer; );
+   
+function __initoffscreenbuffer(buffer)
+  (  __clearoffscreenbuffer(buffer); 
+  gfx_dest=buffer;gfx_setimgdim(buffer,gfx_w,gfx_h);  buffer; );
+ 
+function __initoffscreenbuffer(buffer,w,h)
+  (  __clearoffscreenbuffer(buffer);  
+  gfx_dest=buffer;gfx_setimgdim(buffer,w,h);   buffer; );  
+ 
+  
+function mask_guide_pink(buffer) 
+  (gfx_dest=buffer; setcolor(255,0,255,1););
+
+function showbuffer(buffer) local(w,h) (
+  //gfx_dest=-1;
+  //setcolor(0,1); gfx_x=gfx_y=0;
+  //gfx_rect(0,0,gfx_w,gfx_h); 
+  gfx_a=1;
+  gfx_getimgdim(buffer,w,h);
+  gfx_blit(buffer,1,0,0,0,w,h,0,0,w,h);
+  );
+  
+
+
+function __tracebuffer(x,y,w,h,buffer,mempos)local(ix,iy,im,r,g,b,cache)instance(init)
+(
+cache!=gfx_w*gfx_h*256 ? init=0;
+gfx_dest=buffer;
+!init ? (
+ ix=iy=im=0;gfx_x=x;gfx_y=y;
+ 
+ loop (w,   
+   //gfx_x=x; 
+   ix=0; gfx_y=y+iy;
+   loop (w,
+      gfx_x=x+ix;
+      gfx_getpixel(r,g,b); 
+      mempos[im]=pack_rgb(r,g,b); 
+      im+=1;
+      ix+=1;
+      );
+   iy+=1;
+ );
+ init=1;
+); 
+cache=w*h*256;
+im;
+); 
+
+//
+function __drawtracedbuffer(x,y,w,h,buffer,mempos)local(ix,iy,im,r,g,b)
+(    
+  gfx_dest=buffer;    
+  ix=iy=im=0;gfx_x=x;gfx_y=y;gfx_a=1;  
+  loop (h,   
+    gfx_x=x; ix=0; gfx_y=y+iy;
+    loop (w,
+      gfx_x=x+ix; // gfx_setpixel(r,g,b);  
+        mempos[im] != 16711935 ? (        
+          r=unpack_r(mempos[im]); g=unpack_g(mempos[im]); b=unpack_b(mempos[im]);
+          gfx_setpixel(r,g,b);
+      );
+      im+=1; 
+      ix+=1; 
+    );
+    iy+=1;
+  );
+  im; 
+);  
+
+//direction=1 is left to right, -1 right to left
+function __push_rgb_loop(x,y,w,h,direction,buff)local(xpos,ypos,lo0p,r,g,b)
+(  
+  ypos=xpos=0;//set start variables        
+  
+  loop(h,//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>get loop                                                              
+      xpos=0;//reset xpos 
+      gfx_dest=buff;//look for pink bits in offscreen buffer       
+      gfx_x=x; gfx_y=y+ypos;//set xy
+      gfx_getpixel(r,g,b);//get first pixel  
+      while( r!=1 || (r==1 && g!=0) || (r==1 && b!=1))//~~~~~~~~~~~~~~~~~~~~~~~~~>find loop 
+           ( xpos+=1;//increment xpos
+             gfx_x=max(1,x+(xpos*direction)); gfx_y=y+ypos;//set xy
+             gfx_getpixel(r,g,b);//get rbg value                                                      
+             xpos>=w  ? (r=1; g=0; b=1;)//break loop at w
+           );//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|end find
+      lo0p=xpos; xpos=0; //set lo0p to xpos, and reset xpos           
+      loop( lo0p,//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>stacking loop 
+            gfx_dest=-1; //search main buffer      
+            gfx_x=x+(xpos*direction); gfx_y=y+ypos; //set xy  
+            gfx_getpixel(r,g,b); //get pixels 
+            stack_push(pack_rgb(r,g,b);); //stack packed value 
+            xpos+=1; //increment xpos
+           ); //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|end stacking
+      stack_push(lo0p); //push loop value
+      ypos+=1; //incremant ypos 
+  );//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|end get loop   
+ // gfx_dest=-1;   
+);
+
+//not just for round things... just goes l-r then r-l. can be used for smaller areas.
+function __push_rgb_loop_radius(x,y,radius,buff)
+(
+  __push_rgb_loop(x-radius,y-radius,radius+1,radius*2+1, 1,buff);
+  __push_rgb_loop(x+radius,y-radius,radius+1,radius*2+1,-1,buff);
+);  
+  
+
+function __pop_rgb_loop(x,y,w,h,direction)local(xpos,ypos,r,g,b,l0op,pack)
+(
+  ypos=h-1; xpos=0;  
+  loop( h,
+        stack_pop(l0op);
+        xpos=l0op-1;
+        gfx_a=1;
+        loop ( l0op,      
+               stack_pop(pack);
+               r=unpack_r(pack); g=unpack_g(pack); b=unpack_b(pack);
+               gfx_x=x+(xpos*direction); gfx_y=y+ypos;
+               gfx_setpixel(r,g,b); gfx_a != 1 ? gfx_a=1;
+               xpos-=1; 
+              );   
+        ypos-=1; 
+      );
+);
+
+
+function __pop_rgb_loop(x,y,radius)
+(
+  __pop_rgb_loop(x+radius,y-radius,radius+1,radius*2+1,-1);
+  __pop_rgb_loop(x-radius,y-radius,radius+1,radius*2+1, 1);
+);  
+
+function draw_grid(w,h,xdiv,ydiv,mempos)local(x,i)
+(
+  x=gfx_x; y=gfx_y;
+  gfx_roundrect(gfx_x,gfx_y,w,h,0);
+  
+  this.mem_x=mempos;
+  i=1;
+  loop ( xdiv ,
+     gfx_line(x+(w/xdiv)*i,y,x+w/xdiv*i,y+h);
+    mempos[i]=x+(w/xdiv)*i;
+    i+=1;
+  );
+  
+  this.mem_y=mempos+i;
+  i=1;
+  loop( ydiv ,
+     gfx_line(x,y+(h/ydiv)*i,x+w,y+(h/ydiv)*i);
+    mempos[mem_y+i]=y+(h/ydiv)*i;
+    i+=1;
+  ); 
+);
+ 
+function __grid(w,h,xdiv,ydiv,mempos)local(x,i)
+(
+  x=gfx_x; y=gfx_y;
+ // gfx_roundrect(gfx_x,gfx_y,w,h,0);
+  
+  this.xmem=mempos;
+  i=1;
+  loop ( xdiv ,
+    // gfx_line(x+(w/xdiv)*i,y,x+w/xdiv*i,y+h);
+    mempos[i]=x+(w/xdiv)*i;
+    i+=1;
+  );
+  
+  this.ymem=mempos+i;
+  i=1;
+  loop( ydiv ,
+    // gfx_line(x,y+(h/ydiv)*i,x+w,y+(h/ydiv)*i);
+    mempos[xmem+i]=y+(h/ydiv)*i;
+    i+=1;
+  );    
+  
+  
+   
+);  
+
+
+//deprecated functions
+
+//Use push / pop corners  for grad. circles.
+function __pushcorners(x,y,w,h)
+local(xpos,ypos,xpos2,ypos2,r,g,b,xx,yy,lo0p,lo0p2,lside,rside,l0op,l0op2)
+(
+  xx=x|0; yy=y|0;
+ 
+//set start variables  
+  ypos=0; xpos=0;   ypos2=0; xpos2=0;  
+  lside=max(xx,1);   
+//~~~~~~~~~~~//get loop, left side//~~~~~~~~~~~// 
+  loop (h, 
+    xpos=0; _xy(lside,yy+ypos); gfx_getpixel(r,g,b); //reset xpos //set xy , get pixels     
+    while ( r!=1 || (r==1 && g!=0) || (r==1 && b!=1))   //if it's not magenta, loop till you find it
+      (xpos+=1; _xy(lside+xpos,yy+ypos); gfx_getpixel(r,g,b);
+      xpos>=w? (r=1; g=0; b=1;)//force out of loop //max search
+      );//just counting the spaces here
+        lo0p=xpos; xpos=0; //set xpos = lo0p value //reset xpos            
+    loop (lo0p,   //loop , 
+      _xy(lside+xpos,yy+ypos); gfx_getpixel(r,g,b);     //set xy , get pixels 
+      stack_push(r);stack_push(g);stack_push(b);     //stack values 
+      xpos+=1;      //increment xpos
+    );
+    stack_push(lo0p);        //push loop value
+    ypos+=1;      //incremant ypos  
+    
+  );
+//~~~~~~~~~~~//get loop, right side //~~~~~~~~~~~// 
+  loop (h, 
+  //reset xpos //set xy , get pixels
+    rside=xx+w-1;
+    xpos2=0; _xy(rside,yy+ypos2); gfx_getpixel(r,g,b);  
+    
+  //if it's not magenta, loop till you find it 
+    while ( r!=1 || (r==1 && g!=0) || (r==1 && b!=1)) (
+      xpos2+=1; _xy(rside-xpos2,yy+ypos2); gfx_getpixel(r,g,b); 
+      //max search
+      xpos2>=w? (r=1; g=0; b=1;);
+      );
+      //put loops size to yposmem2 //reset xpos   
+      lo0p2=xpos2; xpos2=0;      
+    //loop  yposmem2 value,    
+    loop (lo0p2,
+    //set xy , get pixels
+      _xy(rside-xpos2,yy+ypos2); gfx_getpixel(r,g,b);
+    //stack values  
+      stack_push(r);stack_push(g);stack_push(b);
+    //increment xpos
+      xpos2+=1; 
+    ); //end mpos loop  
+    stack_push(lo0p2);   
+  //incremant ypos  
+  ypos2+=1;  
+  
+  );
+);
+
+function __popcorners(x,y,w,h)
+local(xpos,ypos,xpos2,ypos2,r,g,b,xx,yy,xposs2,lside,rside,l0op,l0op2)
+( 
+//set start variables 
+  xx=x|0; yy=y|0; 
+  ypos=0; xpos=0;   ypos2=0; xpos2=0;  
+  lside=max(xx,1);
+  lside=xx;
+   rside=xx+w-1;
+//adjust y's       
+  ypos-=1; ypos2-=1;    
+//~~~~~~~~~~~//draw loop, right side//~~~~~~~~~~~//
+  loop (h,
+    //set xpos
+      stack_pop(l0op2);//mempos2[ypos2]-1;  //
+      xpos2=l0op2-1;
+      xposs2=0;      
+      gfx_a=.75; //set alpha  for first pixel
+    loop (l0op2,
+    //pop values out
+    
+      stack_pop(b);stack_pop(g);stack_pop(r); //stack_pop();
+     
+    //set xy , 
+    _xy(rside-xpos2+xposs2,yy+ypos2);    
+    //set pixels
+     gfx_setpixel(r,g,b); gfx_a !=1 ? gfx_a=1;      
+    //increment xpos  
+      xposs2+=1;       
+    ); //end mpos loop   
+    
+  //de-increment ypos
+    ypos2-=1;      
+  );
+//~~~~~~~~~~~//end draw loop, right side//~~~~~~~~~~~//    
+//~~~~~~~~~~~//draw loop, left side//~~~~~~~~~~~//
+  loop (h,
+  stack_pop(l0op);//mempos[ypos]-1;
+  xpos=l0op-1;
+  gfx_a=.75; //set alpha  for first pixel
+    loop (l0op,    
+    //pop values out
+    
+      stack_pop(b);stack_pop(g);stack_pop(r); //stack_pop();
+     
+    //set xy , set pixels //set a to 1 after first pixel
+      _xy(lside+xpos,yy+ypos); gfx_setpixel(r,g,b); gfx_a != 1 ? gfx_a=1;
+    //de-increment xpos  
+      xpos-=1; 
+    ); //end mpos loop    
+  //de-increment ypos
+    ypos-=1;       
+  );
+//~~~~~~~~~~~//end draw loop left side//~~~~~~~~~~~// 
+);
+
+function __pushcorners(x,y,w,h,buffer)
+local(xpos,ypos,xpos2,ypos2,r,g,b,xx,yy,lo0p,lo0p2,lside,rside,l0op,l0op2)
+( 
+//set start variables   
+  xx=x|0; yy=y|0; ypos=xpos=ypos2=xpos2=0; lside=xx; rside=xx+w-1; 
+//oversize the image buffer                               
+  gfx_setimgdim(buffer,gfx_w+radius*2,gfx_h+radius*2);      
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//get loop left          
+  loop (h,                                                           
+      gfx_dest=buffer;                                                  //look for pink bits in offscreen buffer
+      xpos=0;                                                           //reset xpos      
+      _xy(lside,yy+ypos);                                               //set xy
+      gfx_getpixel(r,g,b);                                              //get first pixel  
+      while (r!=1 || (r==1 && g!=0) || (r==1 && b!=1)) (                //loop till you find pink bit
+          xpos+=1;                                                          //increment xpos
+          _xy(lside+xpos,yy+ypos);                                          //set xy
+          gfx_getpixel(r,g,b);                                              //get rbg value
+          xpos>=w? (r=1; g=0; b=1;)                                         //break loop at w
+        );                                                              //
+      lo0p=xpos; xpos=0;                                                //set lo0p to xpos, and reset xpos                   
+      loop (lo0p,                                                       //stacking loop 
+          gfx_dest=-1;                                                      //search main buffer
+          _xy(lside+xpos,yy+ypos);                                          //set xy  
+          gfx_getpixel(r,g,b);                                              //get pixels 
+          stack_push(r);stack_push(g);stack_push(b);                        //stack values 
+          xpos+=1;                                                          //increment xpos
+      );                                                                //
+      stack_push(lo0p);                                                 //push loop value
+      ypos+=1;                                                          //incremant ypos     
+  );  
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//end get loop, left
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//get loop right 
+  loop (h, 
+    gfx_dest=buffer;                                                    //look for pink bits in offscreen buffer  
+    xpos2=0;                                                            //reset xpos //set xy , get pixels
+    _xy(rside,yy+ypos2);                                                //set xy
+    gfx_getpixel(r,g,b);                                                //get first pixel 
+    while ( r!=1 || (r==1 && g!=0) || (r==1 && b!=1)) (                 //go till you find pink bit
+        xpos2+=1;                                                           //increment xpos
+        _xy(rside-xpos2,yy+ypos2);                                          //set xy 
+        gfx_getpixel(r,g,b);                                                //get rbg value 
+        xpos2>=w? (r=1; g=0; b=1;)                                          //break loop at w
+      );                                                                //  
+    lo0p2=xpos2; xpos2=0;                                               //set lo0p2 to xpos2, and reset xpos2      
+    loop (lo0p2,                                                        //stacking loop
+         gfx_dest=-1;                                                       //search main buffer 
+        _xy(rside-xpos2,yy+ypos2);                                          //set xy 
+        gfx_getpixel(r,g,b);                                                //get pixels 
+        stack_push(r);stack_push(g);stack_push(b);                          //stack values 
+        xpos2+=1;                                                           //increment xpos 
+    );                                                                  //
+    stack_push(lo0p2);                                                  //push loop value   
+    ypos2+=1;                                                           //incremant ypos  
+  );
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//end get loop, right  
+);

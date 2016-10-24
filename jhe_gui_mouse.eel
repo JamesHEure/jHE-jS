@@ -1,0 +1,214 @@
+
+@init
+
+
+
+
+//                                                                                                        gfx_x,gfx_y functions>
+function xymask(x,y)
+  ( x+y*max(gfx_w,gfx_h); ); //used in was_drag, etc
+function _xy(x,y)  //sets gfx_x, gfx_y. returns a packed value 
+  ( gfx_x=x; gfx_y=y; xymask(x,y));
+//                                                                                                        gfx_x,gfx_y functions|
+
+
+//                                                                                                              MOUSE functions>
+//click areas must not overlap. to have an overlaping area use _instance version, or rename this function per function basis
+function mouse_click(cap)local(i) 
+  (mouse_cap == cap ? i+=1: i=0; i == 1 ? 1 : 0;);
+function mouse_dblclick (cap)local(i,ii)//to create a double click trigger
+  (mouse_cap==cap  ? (i+=1; i==1 ? ii+=4): (i=0; ii > 0 ? ii-=1); ii >= 5 ? (ii=0; 1):0;);
+function mouse_dblclick (cap,speed)local(i,ii)//sets speed
+  (mouse_cap==cap ? (i+=1; i==1 ? ii+=speed): (i=0; ii > 0 ? ii-=1); ii >= speed+1 ? (ii=0; 1):0;);
+  
+function mouse_click_i(cap)instance(i) 
+  (mouse_cap == cap ? i+=1: i=0; i == 1 ? 1 : 0;);
+function mouse_dblclick_i (cap)instance(i,ii)//to create a double click trigger
+  (mouse_cap==cap && !_gfx_drag ? (i+=1; i==1 ? ii+=4): (i=0; ii > 0 ? ii-=1); ii >= 5 ? 1:0;);
+function mouse_dblclick_i (cap,speed)instance(i,ii)//sets speed
+  (mouse_cap==cap ? (i+=1; i==1 ? ii+=speed): (i=0; ii > 0 ? ii-=1); ii >= speed+1 ? 1:0;);  
+
+function mouse_in_rect(x,y,w,h)//return 1 if yes, 0 if no
+  (  mouse_x > x && mouse_x < (x+w) && mouse_y > y && mouse_y < (y+h)  ? 1 : 0; );//
+
+
+function __xon_mouse_click (cap)local(i)(mouse_cap == cap ? i+=1: i=0; i == 1 ? 1 : 0; );
+function __xon_mouse_dblclick (cap)local(i,ii)(mouse_cap==cap && !_gfx_drag ? (i+=1; i==1 ? ii+=6): (i=0; ii > 0 ? ii-=1); ii >= 7 ? (ii=0; 1):0;); 
+function __toggle_mouseclick (cap)local(i)(mouse_cap == cap ? i+=1: i=0; i == 1 ? 1 : 0; );
+function __toggle_mouse_dblclick (cap)local(i,ii) (mouse_cap==cap && !_gfx_drag ? (i+=1; i==1 ? ii+=6): (i=0; ii > 0 ? ii-=1); ii >= 7 ? (ii=0; 1):0;);
+
+
+
+function mouse_in_rect_xon(x,y,w,h,var,onstate,cap) 
+  (!_gfx_drag && mouse_in_rect(x,y,w,h) && __xon_mouse_click (cap) ? var!=onstate ? var=onstate; var);  
+  function mouse_in_rect_xon(x,y,w,h,var,onstate) (mouse_in_rect_xon(x,y,w,h,var,onstate,1)); 
+  function mouse_in_rect_xon_dbl(x,y,w,h,var,onstate,cap) (mouse_in_rect(x,y,w,h) && __xon_mouse_dblclick (cap) ? var!=onstate ? var=onstate; var);
+  function mouse_in_rect_xon_dbl(x,y,w,h,var,onstate)(mouse_in_rect_xon_dbl(x,y,w,h,var,onstate,1));
+
+function mouse_in_rect_toggle(x,y,w,h,var,onstate,offstate,cap)
+  (!_gfx_drag && mouse_in_rect(x,y,w,h) && __toggle_mouseclick (cap) ? var==onstate ? var=offstate:var=onstate; var;);
+  function mouse_in_rect_toggle(x,y,w,h,var,onstate,offstate) (mouse_in_rect_toggle(x,y,w,h,var,onstate,offstate,1));
+  function mouse_in_rect_toggle(x,y,w,h,var,cap)(mouse_in_rect_toggle(x,y,w,h,var,1,0,cap));
+  function mouse_in_rect_toggle(x,y,w,h,var) (mouse_in_rect_toggle(x,y,w,h,var,1,0,1));
+  function mouse_in_rect_toggle_dbl(x,y,w,h,var,onstate,offstate,cap)
+    (!_gfx_drag && mouse_in_rect(x,y,w,h) && __toggle_mouse_dblclick (cap) ? var==onstate ? var=offstate:var=onstate; var;);
+  function mouse_in_rect_toggle_dbl(x,y,w,h,var,onstate,offstate) (mouse_in_rect_toggle(x,y,w,h,var,onstate,offstate,1));
+  function mouse_in_rect_toggle_dbl(x,y,w,h,var,cap)(mouse_in_rect_toggle(x,y,w,h,var,1,0,cap));
+  function mouse_in_rect_toggle_dbl(x,y,w,h,var) (mouse_in_rect_toggle(x,y,w,h,var,1,0,1));  
+
+
+//drag functions for knobs / faders 
+
+function __drag_xaxis(var,cap,inc,spd)local(t,cache_y,cache_x)
+  ( mouse_cap==cap && _gfx_drag==xymask(gfx_x,gfx_y)  ? (
+      mouse_x< cache_x ? t-=1;  t < -spd ? ( var-=inc; cache_x=mouse_x; t=0; );
+      mouse_x> cache_x ? t+=1;  t >  spd ? ( var+=inc; cache_x=mouse_x; t=0; );     
+      cache_y=mouse_y; cache_x=mouse_x;     
+    ); var;             
+  );
+  function __drag_xaxis(var,cap1,inc1,cap2,inc2,spd) 
+    ( mouse_cap == cap1 ? var=__drag_xaxis(var,cap1,inc1,spd); 
+      mouse_cap == cap2 ? var=__drag_xaxis(var,cap2,inc2,spd); var; 
+    );
+  
+   
+function __drag_yaxis(var,cap,inc,spd)local(t,cache_y,cache_x)
+  ( mouse_cap==cap && _gfx_drag==xymask(gfx_x,gfx_y)  ? (
+      mouse_y> cache_y ? t-=1; t < -spd ? ( var-=inc; cache_y=mouse_y; t=0; );
+      mouse_y< cache_y ? t+=1; t >  spd ? ( var+=inc; cache_y=mouse_y; t=0; );
+      cache_y=mouse_y; cache_x=mouse_x;      
+    );
+    var;             
+  );//
+function __drag_yaxis(var,cap1,inc1,cap2,inc2,spd)//2caps
+  (
+     mouse_cap == cap1 ? var=__drag_yaxis(var,cap1,inc1,spd); 
+     mouse_cap == cap2 ? var=__drag_yaxis(var,cap2,inc2,spd);
+     var;              
+  );
+
+  /*****************************************************************************************
+    Use with faders, etc. to prevent other elements from being modified if you drag over
+    another element.
+  *****************************************************************************************/   
+function was_not_was_drag(x,y,w,h,cap1,cap2)local(was_mouse)
+  (
+    //release wasclicked and wasmouse on button release   
+    _gfx_drag==xymask(x,y) && !mouse_cap  ? (_gfx_drag=0; was_mouse=0;);  
+    //if mouse is in box and wasmouse is 0, or if box was clicked, set wasmouse
+    ( mouse_in_rect(x,y,w,h) && was_mouse!=xymask(x,y) ) || _gfx_drag==xymask(x,y) ? was_mouse=xymask(x,y);
+    //if  wasmouse is set and if box is not clicked, set wasdrag
+    was_mouse==xymask(x,y) && !_gfx_drag && (mouse_click(cap1) || mouse_click(cap2))  ? _gfx_drag=xymask(x,y);
+    //reset was mouse
+    was_mouse==xymask(x,y) && !_gfx_drag ? was_mouse=0;  
+    //return packed xy val if clicked or if mouse on  
+    _gfx_drag==xymask(x,y) || (_gfx_drag && was_mouse==xymask(x,y)) ? xymask(x,y): 0;
+  );  
+  
+function was_not_was_drag(x,y,w,h,cap1)//single cap *need to test*
+  (was_not_was_drag(x,y,w,h,cap1,cap1) 
+  );//
+
+//OLDER CLICKED VERSION may need to reference to get text working in some situation
+//Use with text inputboxes, etc to prevent other elements from being modifed while the box is active 
+function was_not_was_clicked(x,y,w,h,cap)local(was_mouse,rp)
+(
+  //!_gfx_clicked? rp=gfx_getchar(); //text overflow bug fix
+//set was_mouse (packed x,y) if mouse is in box and was_mouse is not already set                                                                                        
+  was_mouse == 0 &&  mouse_in_rect(x,y,w,h) ? was_mouse=xymask(x,y); 
+//set was_clicked if clicked     
+  was_mouse==xymask(x,y) && mouse_cap==cap ? _gfx_clicked=xymask(x,y);       
+//set packed xy val if clicked or if mouse is in box          
+  was_mouse==xymask(x,y)|| _gfx_clicked==xymask(x,y) ? was_mouse=xymask(x,y): was_mouse=0; 
+//release was_mouse so other boxes can be highlighted on mouse over
+  !(mouse_cap&3) ? was_mouse=0; 
+//return packed xy val if clicked or if mouse on   
+  was_mouse;  
+);
+
+function ___was_clicked(x,y,w,h,cap)local(was_mouse)
+  (
+    //release wasclicked and wasmouse on button release   
+    _gfx_clicked==xymask(x,y) && !mouse_cap  ? (_gfx_clicked=0; was_mouse=0;);  
+    //set was mouse to mask if mouse is in rectangle of is was clicked already set
+    ( mouse_in_rect(x,y,w,h) && was_mouse!=xymask(x,y) ) || _gfx_clicked==xymask(x,y) ? was_mouse=xymask(x,y);
+    //if  wasmouse is set and if box is not clicked, set wasclicked on click
+    was_mouse==xymask(x,y) && !_gfx_clicked &&  mouse_click(cap)   ? _gfx_clicked=xymask(x,y);
+    //reset was mouse
+    was_mouse==xymask(x,y) && !_gfx_clicked ? was_mouse=0;  
+    //return packed xy val if clicked or if mouse on  
+    _gfx_clicked==xymask(x,y) || (_gfx_clicked && was_mouse==xymask(x,y)) ? xymask(x,y): 0;
+  ); //assume cap 1
+function was_not_was_clicked(x,y,w,h) (was_not_was_clicked(x,y,w,h,1;) );
+
+
+/*
+  
+//for manual mouse in logic
+function was_not_was_drag(mouse_in)local(was_mouse)
+  (
+    //release wasclicked and wasmouse on button release   
+    !mouse_cap ? (_gfx_drag=0; was_mouse=0;);  
+    //if mouse is in box and wasmouse is !, or if box was clicked, set wasmouse
+    mouse_in  && (was_mouse!=xymask(gfx_x,gfx_y)) || _gfx_drag==xymask(gfx_x,gfx_y) ? 
+    was_mouse=xymask(gfx_x,gfx_y);
+    //if  wasmouse is set and if box is not clicked, set wasclicked
+    was_mouse==xymask(gfx_x,gfx_y)&& !_gfx_drag && mouse_click(1) ? _gfx_drag=xymask(gfx_x,gfx_y);  
+    was_mouse==xymask(gfx_x,gfx_y) && !_gfx_drag ? was_mouse=0;
+    //return packed xy val if clicked or if mouse on  
+    _gfx_drag==xymask(gfx_x,gfx_y) || (!_gfx_drag && was_mouse==xymask(gfx_x,gfx_y)) ? xymask(gfx_x,gfx_y): 0;
+  );//
+// 
+
+//***************************************************************************************global mouse drags**/  
+function __mouse()//global mouse cache  must call at end of @gfx
+  (_gfx_mousecache_y=mouse_y; _gfx_mousecache_x=mouse_x; 
+  );
+function drag_xaxis(var,xymask,cap,inc,spd)local(t)//global drag
+  ( mouse_cap==cap && _gfx_drag==xymask  ? (
+      mouse_x< _gfx_mousecache_x ? t-=1; 
+      t < -spd ? ( var-=inc; _gfx_mousecache_x=mouse_x; t=0; );
+      mouse_x> _gfx_mousecache_x ? t+=1;
+      t > spd ? (  var+=inc; _gfx_mousecache_x=mouse_x; t=0; );     
+    );
+    var;             
+  );//
+function drag_xaxis(var,xymask,cap1,inc1,cap2,inc2,spd)//2caps
+  (
+     mouse_cap == cap1 ? var=drag_xaxis(var,xymask,cap1,inc1,spd); 
+     mouse_cap == cap2 ? var=drag_xaxis(var,xymask,cap2,inc2,spd);
+     var;              
+  );//   
+function drag_yaxis(var,xymask,cap,inc,spd)local(t)
+  ( mouse_cap==cap && _gfx_drag==xymask  ? (
+      mouse_y> _gfx_mousecache_y ? t-=1; 
+      t < -spd ? ( var-=inc; _gfx_mousecache_y=mouse_y; t=0; );
+      mouse_y< _gfx_mousecache_y ? t+=1;
+      t > spd ? (  var+=inc; _gfx_mousecache_y=mouse_y; t=0; );     
+    );
+    var;             
+  );//
+function drag_yaxis(var,xymask,cap1,inc1,cap2,inc2,spd)//2caps
+  (
+     mouse_cap == cap1 ? var=drag_yaxis(var,xymask,cap1,inc1,spd); 
+     mouse_cap == cap2 ? var=drag_yaxis(var,xymask,cap2,inc2,spd);
+     var;              
+  );//
+//______________________________________________________________________________________________________________MOUSE functions|
+// some randomness  
+
+function mouse_countclick(cap)local(i)//used for delayed triggers i.e. mouse_countclick(1)==25? blah=blahblah;
+  (mouse_cap == cap ? i+=1 : i=0; i;
+  );// 
+function mouse_step(cap)local(i)//repeated delayed trigger, uses a default time of 6 for the steps
+  (mouse_cap == cap ? (i+=1; i>6 ? i=0 ): i=0; i == 1 ? 1 : 0;
+  );// 
+function mouse_step(cap,step)local(i)//defines step "speed"
+  (mouse_cap == cap ? (i+=1; i>step ? i=0 ): i=0; i == 1 ? 1 : 0;
+  );// 
+
+
+function __init_xywh(ux,uy,uw,uh)//instance(x,y,w,h,init)
+  ( !this..init  ? (this..x=ux; this..y=uy; this..w=uw; this..h=uh; this..init=1;); );
+function _init_xywh(ux,uy,uw,uh)instance(x,y,w,h,init)
+  ( !init  ? (x=ux; y=uy; w=uw; h=uh; init=1;); );

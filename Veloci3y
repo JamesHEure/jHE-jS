@@ -1,0 +1,100 @@
+desc:Velocity splitter / curve transformer
+
+slider1:0<0,16,1{Any,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}>Input Channel
+slider2:33<0,127,1>Note Min
+slider3:43<0,127,1>Note Max
+slider4:25<0,127,1>Velocity split 1
+slider5:75<0,127,1>Velocity split 2
+slider6:100<0,1000,1>Global Velocity Scaling
+slider7:0<-100,100,1>Global Velocity Add 
+
+slider8:.5<0,1,.001>Velocity Curve A
+//slider9:100<0,1000,1>Velocity Scaling  % A
+slider10:0<-100,100,1>Velocity Add A
+
+slider12:.5<0,1,.001>Velocity Curve B
+//slider13:100<0,1000,1>Velocity Scaling  % B
+slider14:0<-100,100,1>Velocity Add B
+
+slider16:.5<0,1,.001>Velocity Curve C
+//slider17:100<0,1000,1>Velocity Scaling  % A
+slider18:0<-100,100,1>Velocity Add A
+
+slider27:0<-127,127,1>a dif
+slider28:0<-127,127,1>b dif
+slider29:0<-127,127,1>c dif
+
+in_pin:none
+out_pin:none
+
+
+
+@init
+
+//converts a variable from one scale to another
+function variable_scale(var,minval,maxval,tgtmin,tgtmax)
+  (  
+    tgtmin*(1-((var-(minval))/(maxval-minval))) + tgtmax*((var-(minval))/(maxval-minval)); 
+  );
+ 
+function pseudonormalized_curve(input)
+(
+input > .5 ? this.output=variable_scale(input,0.5,1,1,6);
+input < .5 ? this.output=variable_scale(input,0,.5,.15,.99);
+input == .5 ? this.output=0;
+input=this.output;
+);
+
+function Vel(input,minv,maxv,scale,add,curve)
+
+(
+    
+  input >= minv && input <= maxv ? (
+    this.vinput=input;
+    //this.curveoutput=input^curve;
+    this.curveoutput=variable_scale(input^curve,minv^curve,maxv^curve,minv,maxv);;
+    this.output=((this.curveoutput*scale))+add; 
+    
+    this.output=min(maxv,this.output);
+    this.output=max(minv,this.output); 
+     
+    midisend(offset,msg1,msg2,this.output|=0);
+  ) ; 
+   
+);
+
+@slider
+
+inchannel=slider1-1;
+notemin=slider2;
+notemax=slider3;
+scale=slider6* 0.01; add=slider7|=0;
+mina=0; maxa=(slider4-1)|=0; curvea=aa.pseudonormalized_curve(slider8); scalea=slider9; adda=slider10;
+minb=slider4|=0; maxb=(slider5-1)|=0;  curveb=bb.pseudonormalized_curve(slider12); scaleb=slider13; addb=slider14;
+minc=slider5|=0; maxc=127;  curvec=cc.pseudonormalized_curve(slider16); scalec=slider17; addc=slider18;
+  
+
+@block
+
+slider5 <= slider4 ? slider5=slider4+1;
+slider4 >= slider5 ? slider4=slider5-1;
+
+
+while (midirecv(0,msg1,msg2,msg3)) (
+  channel = msg1 & $x0F;         
+  (channel == inChannel || inChannel == -1 ) ?  (      
+    msg1==$x90 && msg3!=0 ? (      
+      msg2 >= notemin && msg2 <= notemax ? (
+        noteon_cnt+=1; // count note-ons
+        a.Vel(msg3,mina,maxa,scale,add,curvea);
+        b.Vel(msg3,minb,maxb,scale,add,curveb);
+        c.Vel(msg3,minc,maxc,scale,add,curvec);
+       // midisend(offset,msg1,msg2,msg3);
+      ): midisend(offset,msg1,msg2,msg3);    
+    ): midisend(offset,msg1,msg2,msg3); // passthrough other events
+  ): midisend(offset,msg1,msg2,msg3);
+);      
+ 
+ slider27=a.output-a.vinput; slider28=b.output-b.vinput; slider29=c.output-c.vinput; 
+     
+@sample

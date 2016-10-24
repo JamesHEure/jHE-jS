@@ -1,0 +1,60 @@
+function init_ext_option(extname,key,value)
+//saves key and value in reaper-extstate.ini
+local(getvalue,setvalue,value)
+instance(didset)
+(
+  getvalue=#; setvalue=#;
+  !HasExtState(extname, key)  ? (
+    sprintf(setvalue,"%i",value);
+    SetExtState(extname, key, setvalue, 1);
+  ); 
+  HasExtState(extname, key) ? ( 
+    GetExtState(getvalue, extname, key); match("%i",getvalue,value); 
+  ); 
+  value;
+);
+
+
+function refresh_ext_option(extname,key,state)
+local(setvalue)
+instance(cache)
+//use name.refresh_ext_option(extname,key,state)
+(
+    setvalue=#;
+    state!=cache ? (
+      sprintf(setvalue,"%i",state); 
+      SetExtState(extname, key, setvalue, 1);
+      cache=state; //this.didset+=1;    
+    );
+);
+
+function run_defer(functionname,evalcode)
+(
+    gfx_update();
+    strlen(evalcode) ? eval(evalcode) ? defer(functionname);
+    evalcode=="" ? gfx_getchar() >= 0  ? defer(functionname);    
+);
+
+function run_defer(functionname) ( run_defer(functionname,"") ); 
+
+function run()
+(
+    
+    _dock.refresh_ext_option(#section,"dockstate",gfx_dock(-1));
+    isload=gfx_loadimg(image,"\Effects/jHE_jS/Hardware Router V3.21/bigsilverknobb.png");
+    
+    
+    run_defer("run()");
+    //gfx_update();
+    //gfx_getchar() >= 0  ? defer("run()");
+);
+
+
+
+
+
+
+#section="Big Knob";
+gfx_init("Big Knob", 120, 120 ,init_ext_option(#section,"dockstate",1));
+
+run();

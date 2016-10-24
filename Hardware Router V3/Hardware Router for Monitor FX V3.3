@@ -1,0 +1,579 @@
+version: V3.3
+desc: Hardware Router for MONITOR FX 
+author: James HE
+  
+options: gmem=HardwareRouter
+import jhe_gui_color.eel
+import jhe_gui_mouse.eel
+import jhe_gui_text.eel
+import jhe_gui_masking.eel
+import jhe_gui_gradients.eel
+import jhe_gui_elements.eel
+
+
+
+slider1: 0 < 0 , 4 , 1 { select , Main , Phones , Aux} >-Master Out / Exclusive Toggle
+slider2: -6 < -120 , 12 , 1 >-Main Volume 
+slider3: -6 < -120 , 12 , 1 >-Phones Volume 
+slider4: -6 < -120 , 12 , 1 >-Aux Volume 
+slider5: 0 < 0 , 1 , 1 {Stereo , Mono (left), Mono (sum)} >-Aux Channel Mode
+slider6: 0 < -120 , 12 , 1 >-ALL Volume 
+
+slider7: 0 < 0 , 31 , 1 {1/2,3/4,5/6,7/8,9/10,11/12,13/14,15/16,17/18,19/20,21/22,23/24,25/26,27/28,29/30,31/32,33/34,35/36,37/38,39/40,41/42,43/44,45/46,47/48,49/50,51/52,53/54,55/56,57/58,59/60,61/62,63/64}>-Input channel 
+slider8: 0 < 0 , 1 , 1 >- Mute all
+slider9: 0 < 0 , 31 , 1 {1/2,3/4,5/6,7/8,9/10,11/12,13/14,15/16,17/18,19/20,21/22,23/24,25/26,27/28,29/30,31/32,33/34,35/36,37/38,39/40,41/42,43/44,45/46,47/48,49/50,51/52,53/54,55/56,57/58,59/60,61/62,63/64}>-Main output channel 
+slider10: 1 < 0 , 32 , 1 {1/2,3/4,5/6,7/8,9/10,11/12,13/14,15/16,17/18,19/20,21/22,23/24,25/26,27/28,29/30,31/32,33/34,35/36,37/38,39/40,41/42,43/44,45/46,47/48,49/50,51/52,53/54,55/56,57/58,59/60,61/62,63/64}>-Phones output channel 
+slider11: 2 < 0 , 33 , 1 {1/2,3/4,5/6,7/8,9/10,11/12,13/14,15/16,17/18,19/20,21/22,23/24,25/26,27/28,29/30,31/32,33/34,35/36,37/38,39/40,41/42,43/44,45/46,47/48,49/50,51/52,53/54,55/56,57/58,59/60,61/62,63/64}>-Aux output channel
+slider12: 1 < 0,1,1{OFF,ON}>- MAIN toggle
+slider13: 1 < 0,1,1{OFF,ON}>-PHONES toggle
+slider14: 0 < 0,1,1{OFF,ON}>- AUX toggle
+slider15: 2 < 0 , 32 , 1 {1/2,3/4,5/6,7/8,9/10,11/12,13/14,15/16,17/18,19/20,21/22,23/24,25/26,27/28,29/30,31/32,33/34,35/36,37/38,39/40,41/42,43/44,45/46,47/48,49/50,51/52,53/54,55/56,57/58,59/60,61/62,63/64}>-Cue input channel
+//slider16: 3 < 0 , 4, 1 {All, Main, Phones, Aux}>-CUE Output
+slider17: -6 < -120 , 12 , 1 >-Cue Volume  
+slider18: 0 < 0,2,1{OFF,ON, LINKED}> -MAIN to Cue
+slider19: 0 < 0,2,1{OFF,ON, LINKED}> -PHONES to Cue
+slider20: 0 < 0,2,1{OFF,ON, LINKED}> -AUX to Cue
+
+slider21: 0 < -60 , 12 , 1 >-Main Cue Trim 
+slider22: 0 < -60 , 12 , 1 >-Phones Cue Trim 
+slider23: 0 < -60 , 12 , 1 >-Aux Cue Trim 
+options 
+
+filename:0,bigsilverknobb.png
+filename:1,bigsilverknobbdotb.png
+
+@init
+
+function buffered_volume_control_BLOCK(db)
+(
+  this.tgt_vol = 10 ^ (db / 20);
+  this.d_vol = (this.tgt_vol-this.src_vol)/samplesblock; 
+  this.tvol = this.src_vol;
+  this.src_vol = this.tgt_vol;
+);
+function buffered_volume_control_BLOCK(db,mute)local(_db) //adds sweet soft mute ;)
+(
+  mute ? _db=db;
+  !mute  ? ( _db=-120; );
+  this.tgt_vol = 10 ^ (_db / 20);
+  this.d_vol = (this.tgt_vol-this.src_vol)/samplesblock; 
+  this.tvol = this.src_vol;
+  this.src_vol = this.tgt_vol;
+);
+
+function _db2lin(db)  (10 ^ (db / 20)); 
+function _lin2db(amp) (20 * log10(amp));     
+
+//outputs instance.adj amount.
+function buffered_volume_control_SAMPLE() 
+(  
+  
+    this.tvol += this.d_vol; this.adj = this.tvol; 
+    this.adj==.00000001 ? this.adj=0;  
+    //this.proc=1;
+    this.adj; 
+  
+); 
+
+//_global.offsetbugfix=0; //-some older library elements may need this *FIXED! thanks Justin!
+
+
+ext_noinit=1;
+ 
+slider6=0;
+
+page=1;
+
+!file_var(0,LCDfontsize) ? LCDfontsize=14;
+!file_var(0,s_volmin) ? s_volmin=-90;
+!file_var(0,s_volmax) ? s_volmax=12;
+!file_var(0,c_trimmin) ? c_trimmin=-45;
+!file_var(0,c_trimmax) ? c_trimmax=12;
+!file_var(0,auxmonomode) ? auxmonomode=2;
+!file_var(0,cuedefault) ? cuedefault = -6;
+!file_var(0,voldefault) ? voldefault = -6;
+!file_var(0,preset) ? preset=6;
+!file_var(0,useralpha) ? useralpha=1;
+!file_var(0,dim) ? dim=0;
+!file_var(0,dimlev) ? dimlev=-12;
+!file_var(0,border) ? border=7;
+
+@serialize
+file_var(0,LCDfontsize);
+file_var(0,s_volmin);
+file_var(0,s_volmax);
+file_var(0,c_trimmax);
+file_var(0,c_trimmin);
+file_var(0,auxmonomode);
+file_var(0,preset); 
+file_var(0,cuedefault);
+file_var(0,voldefault);
+file_var(0,usercolor);
+file_var(0,useralpha);
+file_var(0,showmain);
+file_var(0,showphones);
+file_var(0,showaux);
+file_var(0,dim);
+file_var(0,dimlev);
+file_var(0,out_cuelink);
+file_var(0,border);
+
+
+@slider
+   //Master_trim(); 
+@block
+ 
+
+chIN=2*slider7;//input selector
+choM=2*slider9;//master output selector
+choP=2*slider10;//phones output selector
+choA=2*slider11;//aux output selector
+cueIN=2*slider15; //CUE in
+
+// exclusive Solo Mode
+slider1 == 1 ? (slider12=tomainout=1; slider13=slider14=tophonesout=toauxout=0; );
+slider1 == 2 ? (slider13=tophonesout=1; slider12=slider14=tomainout=toauxout=0; );
+slider1 == 3 ? (slider14=toauxout=1; slider12=slider13=tomainout=tophonesout=0; );
+slider1? slider1=0; //toggle it back to 0 to be reset
+
+//CUE assign
+slider18==2 ? cuetomain=tomainout:cuetomain=slider18;
+slider19==2 ? cuetophones=tophonesout:cuetophones=slider19;
+slider20==2 ? cuetoaux=toauxout:cuetoaux=slider20;
+
+slider2 <= s_volmin || !slider12 ? mainmute=0:mainmute=1;
+slider3 <= s_volmin || !slider13 ? phonesmute=0:phonesmute=1;
+slider4 <= s_volmin || !slider14 ? auxmute=0:auxmute=1;
+slider8 ? mainmute=phonesmute=auxmute=0;
+   
+//volume buffers
+MAIN.buffered_volume_control_BLOCK(slider2+dimlev*dim,mainmute);
+PHONES.buffered_volume_control_BLOCK(slider3+dimlev*dim ,phonesmute);
+AUX.buffered_volume_control_BLOCK(slider4+dimlev*dim,auxmute);
+MASTER.buffered_volume_control_BLOCK(slider6+dimlev*dim);
+//Cue buffers
+CUEtoMAIN.buffered_volume_control_BLOCK(dimlev*dim+(slider21+slider2)/2,(slider18 && !slider8));
+CUEtoPHONES.buffered_volume_control_BLOCK(dimlev*dim+(slider22+slider3)/2,(slider19 && !slider8));
+CUEtoAUX.buffered_volume_control_BLOCK(dimlev*dim+(slider23+slider4)/2,(slider20 && !slider8));
+
+//
+slider12 ? tomainout=1:tomainout=0;
+slider13 ? tophonesout=1:tophonesout=0;
+slider14 ? toauxout=1:toauxout=0;
+
+numofouts = tomainout + tophonesout + toauxout ;
+
+//slider_automate(2); slider_automate(4); 
+
+@sample
+
+//volume buffers (sample section)
+MAIN.buffered_volume_control_SAMPLE(mainmute);
+
+PHONES.buffered_volume_control_SAMPLE(phonesmute);
+AUX.buffered_volume_control_SAMPLE(auxmute);
+MASTER.buffered_volume_control_SAMPLE(slider8);
+//CuE buffers (sample section)
+CUEtoMAIN.buffered_volume_control_SAMPLE(cuetomain);
+CUEtoPHONES.buffered_volume_control_SAMPLE(cuetophones);
+CUEtoAUX.buffered_volume_control_SAMPLE(cuetoaux);
+
+// get  input
+inputM0=inputP0=inputA0=spl(chIN); inputM1=inputP1=inputA1=spl(chIN+1);
+//inputM0=inputP0=inputA0=spl0; inputM1=inputP1=inputA1=spl1;
+//Get CUE inputs
+cuetomain && cueIN!=chIN  ? (     
+    inputCm0=spl(cueIN)*=CUEtoMAIN.adj; inputCm1=spl(cueIN+1)*=CUEtoMAIN.adj; );
+cuetophones && cueIN!=chIN  ? (    
+    inputCp0=spl(cueIN)*=CUEtoPHONES.adj; inputCp1=spl(cueIN+1)*=CUEtoPHONES.adj; );
+cuetoaux && cueIN!=chIN  ?  ( 
+    inputCa0=spl(cueIN)*=CUEtoAUX.adj; inputCa1=spl(cueIN+1)*=CUEtoAUX.adj; );  
+  
+
+//pre output-assignment signal kill
+spl(chIN)=spl(chIN+1)=spl(cueIN)=spl(cueIN+1)=0; 
+
+//AUX
+cuetoaux==1 && !toauxout ? (spl(choA)=(inputCa0); spl(choA+1)=(inputCa1); ); //(if aux not active)
+toauxout ? ( 
+  !cuetoaux ? (
+   spl(choA)=(inputA0*=AUX.adj)*=MASTER.adj; 
+   spl(choA+1)=(inputA1*=AUX.adj)*=MASTER.adj; 
+  ):(
+   spl(choA)=((inputA0*=AUX.adj)+(inputCa0))*=MASTER.adj; 
+   spl(choA+1)=((inputA1*=AUX.adj)+(inputCa1))*=MASTER.adj; 
+  ); 
+ //stereo / mono 
+  slider5==1 ? (spl(choA)=(spl(choA)+spl(choA+1))/2; spl(choA+1)=0;);
+  slider5==2 ?  spl(choA)=spl(choA+1)=  (spl(choA)+spl(choA+1))/2;
+);
+
+
+//PHONES 
+cuetophones==1 && !tophonesout ? (spl(choP)=(inputCp0); spl(choP+1)=(inputCp1); );  //(if phones not active)
+tophonesout  ? ( 
+  !cuetophones ? (
+   spl(choP)=(inputP0*=PHONES.adj)*=MASTER.adj; 
+   spl(choP+1)=(inputP1*=PHONES.adj)*=MASTER.adj; 
+  ):(
+   spl(choP)=((inputP0*=PHONES.adj)+(inputCp0))*=MASTER.adj; 
+   spl(choP+1)=((inputP1*=PHONES.adj)+(inputCp1))*=MASTER.adj; 
+  );
+);
+
+//MAIN 
+cuetomain==1 && !tomainout ? ( spl(choM)=(inputCm0); spl(choM+1)=(inputCm1););  //(if main out not active)
+tomainout ? ( 
+  !cuetomain ? (
+   spl(choM)=(inputM0*=MAIN.adj)*=MASTER.adj; 
+   spl(choM+1)=(inputM1*=MAIN.adj)*=MASTER.adj; 
+  ):(
+   spl(choM)=((inputM0*=MAIN.adj)+(inputCm0))*=MASTER.adj; 
+   spl(choM+1)=((inputM1*=MAIN.adj)+(inputCm1))*=MASTER.adj; 
+  ); 
+);
+
+
+@gfx 600 130
+
+function bezel()local(x,y,w,h,gradient_center,gcolor,edge,i,tmpbuffer,u,position,alpha)
+( 
+  x=0; y=0; saturation=6; edge=0; gcolor=pack_rgb(); alpha=gfx_a;
+  w=gfx_w; gradient_center=.9; h=gfx_h; color=0x0C0C0C; u=1; position=1;   tmpbuffer=120;
+  gradient_frame(x,y,w,h,color,edge,saturation,gradient_center,border);
+  setcolor(gcolor,alpha); preset>=5?gfx_a=1;
+  a.rackface(unit_h,u,position,border,preset,126,tmpbuffer);
+  gfx_w>dyn_w ? (
+    setcolor(0x000000); 
+    i=1;loop (border,gfx_a=.015; gfx_rect(border,border,i,gfx_h-border*2); i+=1;);
+    i=1;loop (border,gfx_a=.015; gfx_rect(border,border,gfx_w-border*2,i); i+=1;); 
+    i=1;loop (border/3,gfx_a=.05; gfx_rect((gfx_w-border)-i,border,i,gfx_h-border*2); i+=1;);
+    i=1;loop (border/3,gfx_a=.02; gfx_rect(border,(gfx_h-border)-i,gfx_w-border*2,i); i+=1;);
+    setcolor(0xFFFFFF);      
+    i=1;loop (border/3,gfx_a=.015; gfx_rect((gfx_w-border)+i,border,i,gfx_h-border*2+(border/3)); i+=1;);
+    i=1;loop (border/3,gfx_a=.015; gfx_rect(border,(gfx_h-border)+i,gfx_w-border*2+(border/3),i); i+=1;);                
+    //screws
+    (gfx_a=1; rackscrews(unit_h,1,1,border););
+);
+
+);
+
+function _output_selector(string,solo_slider,solo_num,toggleslider,volumeslider,cueon)
+local(clickable_width,y,x,pw,IOxpos,IOypos,xsolocache,togglecache,cueoncache,)
+  (  
+      
+   //HEADER  
+    gfx_setfont(1); txt_w(string) > clickable_width ? clickable_width=txt_w(string);
+    x1=x0+12; y=gfx_y; alphastate(slider(toggleslider) && !slider8 ,1,.25); x1=gfx_x=x0+12+clickable_width;
+    
+    print_rightjust(string);  
+   //Solo on r click 
+   // slider(solo_slider)=mouse_in_rect_xon(x1-clickable_width,gfx_y,clickable_width,gfx_texth,slider(solo_slider),solo_num,2);
+   // xsolocache=slider(solo_slider);
+    slider(solo_slider)=mouse_in_rect_xon(x1-clickable_width,gfx_y,clickable_width,gfx_texth,slider(solo_slider),solo_num,2);
+   // slider(solo_slider)!=xsolocache ? ( slider_automate(2^(solo_slider-1)); );
+    
+   //Toggle on  click 
+   // togglecache=slider(toggleslider);
+    slider(toggleslider)=mouse_in_rect_toggle(x1-clickable_width,gfx_y,clickable_width,gfx_texth,slider(toggleslider));
+   // slider(toggleslider)!=togglecache ? slider_automate(2^(toggleslider-1));
+    
+    
+   //link cue to output 
+    slider(cueon)==2 ? fill=1:fill=0;
+    alphastate(slider(cueon)==2 && slider(toggleslider) ,1,.15);
+    gfx_circle(gfx_x+8,gfx_y+5,2,fill,1); 
+    
+    //cueoncache=slider(cueon);
+    slider(cueon)=mouse_in_rect_toggle(gfx_x,gfx_y,10,10,slider(cueon),2,cond_return(slider(toggleslider),1,0));
+    //cueoncache!=slider(cueon)?slider_automate(2^(cueon-1));
+    
+    IOxpos=gfx_x+4; IOypos=gfx_y+12;
+   //db
+    gfx_x=x1; gfx_y+=gfx_texth-1; yb=gfx_y+gfx_texth; 
+    alphastate((slider(toggleslider) || slider(cueon)==1) && !slider8 ,.75,.15);
+    gfx_setfont(2); sprintf(#voldb,"%.2f db",slider(volumeslider)); print_rightjust(#voldb); 
+    
+   //Volume BOX
+    x2=gfx_x=x1+16; gfx_y+=gfx_texth-12;  gfx_a=.15; x3=x0+(screen_width)-(24); pw=x3-x2;
+    gfx_roundrect(x2,gfx_y,pw,10,0);   
+    alphastate((slider(toggleslider) || slider(cueon)==1) && !slider8 ,.75,.15);  ys=gfx_y;    
+    slider(volumeslider)=dragable_parameter_box(slider(volumeslider),voldefault,s_volmin,s_volmax,pw,10);
+    
+   //CUE 
+    gfx_y=ys-gfx_texth-1; cx=gfx_x;
+    alphastate( (slider(cueon)==1 && !slider8) || (slider(cueon)==2 && slider(toggleslider)) ,1,.35); 
+   // print_leftjust(" CUE"); gfx_x+=txt_w("CUE")+2; alphastate(slider(cueon) && !slider8,1,.35);
+    gfx_w>300? #CUEON="CUE  ON ":#CUEON="CUE";
+    slider(cueon)=print_leftjust_toggle(cond_return((slider(cueon)==2 && slider(toggleslider) || slider(cueon)==1 ),1,#CUEON,"CUE OFF"),slider(cueon),0,1);
+    gfx_a=.35;
+    slider(cueon)==1 || (slider(cueon)==2 && slider(toggleslider)) && !slider8 ? (
+      sprintf(#cuedb,"%.2f db",slider(cueon+3));
+      gfx_x+=txt_w("CUE OFF")+4;   gfx_a=.75;  gfx_x+=4; gfx_y+=2; cx1=gfx_x;
+      c_boxw=pw-(cx1-cx)-txt_w(#cuedb)-4;
+      c_boxw > 50 ? (
+        gfx_y-=3; gfx_drawstr("trim"); gfx_y+=4; 
+        slider(cueon+3)=dragable_parameter_box(slider(cueon+3),cuedefault,c_trimmin,c_trimmax,pw-(cx1-cx)-txt_w(#cuedb)-4,6); 
+        gfx_x+=pw-(cx1-cx)-txt_w(#cuedb);
+        gfx_y-=4; gfx_drawstr(#cuedb);
+      ):(
+        gfx_x=x2+pw-(txt_w("-00.00 db")); gfx_y-=2;
+        slider(cueon+3)=mouse_in_rect_xon_dbl(gfx_x,gfx_y,txt_w("-00.00 db"),gfx_texth,slider(cueon+3),cuedefault);
+        slider(cueon+3)=print_dragable_string(#cuedb,slider(cueon+3),.5);        
+      );    
+            
+    );
+   // IO box
+   /*
+    gfx_a=.25;
+    gfx_roundrect(IOxpos,IOypos,10,9,0)  ;
+    gfx_a=.5;
+    gfx_x=IOxpos+1; gfx_y=IOypos+1; 
+    gfx_setfont(3);
+    mouse_in_rect(gfx_x,gfx_y,10,9) && mouse_click(1) ? IOmenu=1;
+    gfx_drawstr("iO");
+    */
+    gfx_y=y+yspacing; //move y down to next level
+  );
+
+function IN_OUT(string,slidernum)local(si,sis,xs,more)instance(six)
+(
+  si=0+six; gfx_a=.9; gfx_setfont(4); spacing=txt_w("66/66"); 
+  draw_rightjust(string); gfx_x+=4;
+  six ? (more=draw_leftjust_toggle("<",more,0,-1); gfx_x+=4;):gfx_x+=txt_w("<")+4;
+  gfx_x+=12;
+  while( gfx_x<x5-70 ) ( 
+     sprintf(sis,"%i/%i",si+1,si+2);
+     alphastate(slider(slidernum)==si/2,.9,.25);
+     slider(slidernum)=print_centerjust_xon(sis,slider(slidernum),(si)/2);  gfx_x+=spacing+4;
+     si==num_ch? gfx_x=x5-70;
+     si+=2; 
+  );
+  si<num_ch ? ( gfx_x=x5-55; more=draw_leftjust_toggle(">",more,0,1); );
+  more== 1  ? ( six+=2; more=0; ); 
+  more==-1  ? ( six-=2; more=0; );
+);
+
+
+function begin_gfx_sliderautomate(i,buff)
+(
+  buff[i]=slider(i);
+);  
+
+function end_gfx_sliderautomate(i,buff)
+(
+  buff[i]!=slider(i) ? slider_automate(2^(i-1));
+);  
+ 
+i=1; buff=0;
+loop(23, begin_gfx_sliderautomate(i,buff); i+=1;);
+
+
+ gfx_setfont(1,"Microsoft Sans Serif",LCDfontsize); 
+ gfx_setfont(2,"Microsoft Sans Serif",LCDfontsize-2);
+ gfx_setfont(3,"Microsoft Sans Serif",LCDfontsize-3);
+ gfx_setfont(4,"Microsoft Sans Serif",14);
+//frame
+ border=file_var(0,border); 
+// _gfx_refresh=1;
+ unit_h=max(88,(gfx_h-(2*border)));  //buffer=121;
+// setcolor(0x120708);
+ 
+ 
+ setcolor(usercolor,useralpha);
+ dyn_w=375;
+ border!=file_var(0,border) ? _gfx_refresh=1;
+  bezel(); 
+ _gfx_refresh=0;
+ gfx_dest=-1; 
+ 
+//MASTER KNOB
+ gfx_w>dyn_w || gfx_w<=260 ? (
+   gfx_w<=260 ? (
+    _xy(gfx_w/2,knob_y=max(60,border+unit_h/2))
+  ):(
+    _xy(gfx_w/5.75+border,knob_y=max(60,border+unit_h/2));
+    
+  );  
+   
+   gfx_a=1;
+   //normalize values ??
+   //amp=_db2lin(slider6);
+   
+   //slider6=png_rotary(slider6,0,1,60+min(gfx_h/5,gfx_w/5),.5);//,s_volmin,s_volmax,0,180);
+   slider6=png_knob_a(slider6,0,-60,18,-270,90,0,1,60+min(gfx_h/5,gfx_w/5),1);
+   //slider6 = _lin2db(amp);
+  ); 
+
+// gainknob=6;
+//DISPLAY SCREEN
+
+gfx_w >260 ?  (
+   gfx_w< dyn_w ? (
+     x0=24+border; x5=max(gfx_w-24-border,230);
+   ):(
+     x0=2*(gfx_w/6)+border+6; x5=gfx_w-(gfx_w/12)-border+6;
+   ); 
+   y0=gfx_y=max(12,gfx_h/10)+border; gfx_x=x0; 
+   screen_height=unit_h-unit_h/5;
+   screen_width=max(x5-x0,200);
+  //Y coordinates
+    yspacing=max(24,screen_height/(showmain+showphones+showaux+1));
+   y1=y0+(yspacing)/1.5;
+   gfx_y=y0; gfx_x=x0;
+
+
+   
+   
+   LCD(screen_width,screen_height,0x263526,2,-.4);
+  //SCREEN TEXT
+   setcolor(0,225,0,.5);
+  //MUTE 
+   gfx_setfont(2); alphastate(slider8 || !dim ,1,.65); set_clrstate(!slider8, clrstate(dim,0xFFFF00,0x00FF00), 0xFF0000);
+  gfx_x=x0+25;
+   slider8=draw_centerjust_toggle("MUTE",slider8,0,1); gfx_x+=40; alphastate(dim ,1,.35);
+  //DIM 
+   dim=draw_centerjust_toggle("DIM",dim,0,1);
+   
+   sprintf(#DIMLEV,">DIM Level: (%d)| -3|-6|-12|-24|<-32|",dimlev);
+  // #DIMLEV=">DIM Level: (| -3|-6|-12|-16|-20|<-24|";
+  
+   mouse_in_rect(gfx_x,gfx_y,txt_w("DIM"),gfx_texth) && mouse_click(2) ? (
+     dimlevM=gfx_showmenu(#DIMLEV);
+   );
+   dimlevM ? dimlev=v_index(dimlevM,dimlevel,-3,-6,-12,-24,-32);
+   
+   //IOmenu ? gfx_showmenu(#IO);
+   
+  //menu selector   
+   gfx_x=x5-24; gfx_y=y0+1; 
+   gfx_setfont(2); //gfx_a=.25;
+   Page==3 ? gfx_a=.75:gfx_a=.25;
+   Page=print_centerjust_xon("Options",page,3);
+   
+   gfx_x-=40;
+   Page==2 ? gfx_a=.75:gfx_a=.25;
+   Page=print_centerjust_xon("I / O",page,2);
+   
+   gfx_x-=40;
+   Page==1 ? gfx_a=.75:gfx_a=.25;
+   Page=print_centerjust_xon("Mixer",page,1);
+   
+   //conditions 
+   screen_height > 136 ? showmain=showphones=showaux=1;
+   screen_height > 20 &&  screen_height < 100 ?  ( showmain=1; showphones=1; showaux=0;);
+   
+  //Volume sliders 
+   page==1 ?  ( 
+     gfx_y=y1; gfx_x=x0;
+    //Main 
+     showmain  ? _output_selector("MAIN",1,1,12,2,18);
+ 
+    //Phones 
+     showphones ? _output_selector("PHONES",1,2,13,3,19); 
+    //Aux 
+     showaux ? (
+       _output_selector("AUX",1,3,14,4,20); 
+       gfx_x=x1+16;  alphastate( (toauxout && !slider5)   && !slider8,1,.15);
+       gfx_y-=yspacing-10-gfx_texth-1; slider5=draw_leftjust_xon("stereo |",slider5,0);
+       !slider5 ? auxmono=0; 
+       alphastate(slider5 && toauxout && !slider8,1,.15);
+       auxmono=draw_leftjust_xon("| mono",auxmono,1);
+     );
+     auxmono ? slider5=auxmonomode;
+   );  
+  //menu 
+   
+  gfx_setfont(1);
+       xx=x0+txt_w("AUX mono mode:")+12; 
+   
+   page==2 ?  (  
+     
+         
+        gfx_x=xx; gfx_y=y0+4; cr();
+        IN.IN_OUT("INPUT:",7);
+        gfx_x=xx; cr();
+        MA.IN_OUT("MAIN OUT:",9);
+        gfx_x=xx; cr();
+        PH.IN_OUT("PHONES OUT:",10);
+        gfx_x=xx; cr();
+        AX.IN_OUT("AUX OUT:",11);
+        gfx_x=xx; cr();
+        screen_height > 90 ? (
+          CI.IN_OUT("CUE IN:",15); 
+          
+        );
+        y5=gfx_y;
+      
+   );  
+ 
+    
+     Page==3 ? (
+       gfx_x=xx;  gfx_y=y0+4; cr(); gfx_a=.9;
+      //AUX mono 
+       draw_rightjust("AUX mono mode:");
+       gfx_x+=14;
+       alphastate(!slider5, .9, .35);
+       alphastate(auxmonomode==1, .9, .35);
+       auxmonomode=draw_leftjust_xon("(left)",auxmonomode,1);
+       gfx_x+=8; alphastate(auxmonomode==2, .9, .35);
+       auxmonomode=draw_leftjust_xon("(sum)",auxmonomode,2);
+       gfx_x=xx;  cr();  gfx_a=.9;
+       //cr(); gfx_x=xx; gfx_a=.9;
+      //volume ranges 
+       print_rightjust("vol. def/min/max:"); gfx_x+=14;
+       voldefault=num_field(voldefault,"00000","%i",varstr=#); gfx_x+=8;
+       s_volmin=num_field(s_volmin,"00000","%i",varstr=#); gfx_x+=8;       
+       s_volmax=num_field(s_volmax,"00000","%i",varstr=#); 
+       cr(); gfx_x=xx;
+      //cue volume 
+       print_rightjust("cue def/min/max:"); gfx_x+=14;
+       cuedefault=num_field( cuedefault,"00000","%i",varstr=#);  gfx_x+=8;
+       c_trimmin=num_field( c_trimmin,"00000","%i",varstr=#);  gfx_x+=8;
+       c_trimmax=num_field(c_trimmax,"00000","%i",varstr=#);  
+       cr(); gfx_x=xx; 
+      //DIM 
+       print_rightjust("dim level:"); gfx_x+=14;
+                dimlev=num_field(dimlev,"000","%i",varstr=#);
+                cr(); gfx_x=xx;
+      //rack face
+             screen_height > 120 ? (          
+       //Font 
+        draw_rightjust("Font Size:"); gfx_x+=14;
+        alphastate(LCDfontsize==12, .9, .35);
+        LCDfontsize=draw_leftjust_xon("12",LCDfontsize,12); gfx_x+=4;       
+        alphastate(LCDfontsize==14, .9, .35);
+        LCDfontsize=draw_leftjust_xon("14",LCDfontsize,14); gfx_x+=4;
+        alphastate(LCDfontsize==16, .9, .35);
+        LCDfontsize=draw_leftjust_xon("16",LCDfontsize,16); gfx_x+=4; 
+        cr(); gfx_x=xx; gfx_a=.9;
+         
+         
+         print_rightjust("border:"); gfx_x+=14;
+         border=num_field(border,"000","%i",varstr=#);
+         cr();gfx_x=xx;
+         
+           //Rack presets 
+         print_rightjust("face preset:"); gfx_x+=14;
+         preset=num_field(preset,"000","%i",varstr=#);
+         cr(); gfx_x=xx;
+         preset < 5 ? (
+           print_rightjust("face color (Hex):"); gfx_x+=14;
+           usercolor=num_field(usercolor,"00000000","%X",varstr=#); gfx_x+=12;
+           cr(); gfx_x=xx;
+           print_rightjust("face alpha:"); gfx_x+=14;
+           useralpha=num_field(useralpha,"00000000","%.2f",varstr=#); gfx_x+=12;            
+         ); 
+          
+       );   
+     );  
+); 
+
+i=1;
+loop(23, end_gfx_sliderautomate(i,buff); i+=1;);//slider_automate(slider2); 
+/*    
+    slider_automate(2^volumeslider);
+    slider_automate(2^(cueon+3));
+    slider_automate(2^cueon);
+    slider_automate(2^toggleslider);
+    slider_automate(2^solo_slider);  

@@ -1,0 +1,165 @@
+/*******************
+gradients
+********************/
+
+
+@init
+
+function __backfill(x,y,w,h) local(a)
+(
+  a=gfx_a; setcolor(0,1); gfx_rect(x,y,w,h); gfx_a=a;
+);  
+
+function edged_grad_w(x,y,w,h,color,edgew,cntr_hl)
+  (
+  d=gfx_a;
+  setcolor(color);
+  edgew>=w/2? edgew=w/2-1;
+  gfx_gradrect(x,y,edgew,h,gfx_r,gfx_g,gfx_b,0.33,0,0,0,.66*d/edgew,0,0,0,0);//left edge
+  gfx_gradrect(x+w-edgew,y,edgew,h,gfx_r,gfx_g,gfx_b,1,0,0,0,-.66*d/edgew,0,0,0,0);//right edge
+  gfx_gradrect(x+edgew,y,(w-edgew*2)/2,h,gfx_r,gfx_g,gfx_b,1,0,0,0,cntr_hl*d/((w-edgew*d)/2),0,0,0,0);//left half
+  gfx_gradrect(x+w/2,y,1+(w-edgew*2)/2,h,gfx_r,gfx_g,gfx_b,cntr_hl+1,0,0,0,-cntr_hl*d/((w-edgew*d)/2),0,0,0,0);//right half
+  );
+function edged_grad_w(x,y,w,h,color,edgew,cntr_hl,cl)local(d)
+  (
+  cl*=w; 
+  cl=max(1,cl)|0;
+  d=gfx_a;
+  setcolor(color);
+  edgew>=w/2? edgew=w/2-1;
+  
+  gfx_gradrect(x,y,edgew,h,gfx_r,gfx_g,gfx_b,0.33,0,0,0,.66*d/edgew,0,0,0,0);//left edge
+  gfx_gradrect(x+w-edgew,y,edgew,h,gfx_r,gfx_g,gfx_b,1,0,0,0,-.66*d/edgew,0,0,0,0);//right edge  
+  gfx_gradrect(x+edgew,y,(cl-edgew),h,gfx_r,gfx_g,gfx_b,1,0,0,0,cntr_hl*d/(cl-edgew),0,0,0,0);//left half
+  gfx_gradrect(x+cl,y,(w-edgew-cl),h,gfx_r,gfx_g,gfx_b,cntr_hl+1,0,0,0,-cntr_hl*d/((w-cl)-(edgew)),0,0,0,0);//right half
+  );
+
+function edged_grad_w_backfill(x,y,w,h,color,edgew,cntr_hl,cl)local(a)
+  (__backfill(x,y,w,h); edged_grad_w(x,y,w,h,color,edgew,cntr_hl,cl); );
+ 
+function edged_grad_w_backfill(x,y,w,h,color,edgew,cntr_hl) 
+  (edged_grad_w_backfill(x,y,w,h,color,edgew,cntr_hl,w/2));  
+
+function edged_grad_h(x,y,w,h,color,edgew,cntr_hl)local(d,thy,hw,bhy,bey)//cntr_hl is saturation
+(
+  d=gfx_a;
+  setcolor(color);
+  //edgew>=h/2? edgew=h/2-1;
+  thy=y+edgew;//top half y
+  hw=(((h-edgew*2)+1)/2)|0;//top half width
+  bhy=thy+hw;//btm half y
+  bey=bhy+hw;//btm edge y
+  
+  gfx_gradrect(x,y,w,edgew,gfx_r,gfx_g,gfx_b,.33*d,0,0,0,0,0,0,0,.66*d/edgew);//top edge
+  
+  gfx_gradrect(x,thy,w,hw,gfx_r,gfx_g,gfx_b,1*d,0,0,0,0,0,0,0,(cntr_hl*d/((h-edgew*2)/2)));//top half
+  gfx_gradrect(x,bhy,w,hw,gfx_r,gfx_g,gfx_b,(cntr_hl+1)*d,0,0,0,0,0,0,0,-((cntr_hl*d)/((h-edgew*2)/2)));//btm half 
+  
+  gfx_gradrect(x,bey,w,edgew,gfx_r,gfx_g,gfx_b,1*d,0,0,0,0,0,0,0,-(.66*d/edgew));//bottom edge        
+  gfx_a=d;
+); 
+
+function edged_grad_h(x,y,w,h,color,edgew,cntr_hl,cl)local(d,thy,hw,bhy,bey)
+(
+  cl*=h;
+  cl|=0;
+  //cl=max(1,cl);
+  d=gfx_a;
+  color != -1 ? setcolor(color);
+  edgew>=h/2? edgew=h/2-1;
+  thy=y+edgew;//top half y
+  hw=(((h-edgew*2)+1)*cl) /2;//top half height
+  bhy=thy+hw;//btm half y
+  bey=bhy+hw;//btm edge y
+  
+  gfx_gradrect(x,y,w,edgew,gfx_r,gfx_g,gfx_b,0.33*d,0,0,0,0,0,0,0,.66*d/edgew);//top edge
+  
+  gfx_gradrect(x,y+edgew,w,(cl-edgew),gfx_r,gfx_g,gfx_b,1*d,0,0,0,0,0,0,0,(cntr_hl*d/(cl-edgew)));//top half
+  gfx_gradrect(x,y+cl,w,(h-cl)-edgew,gfx_r,gfx_g,gfx_b,(cntr_hl+1)*d,0,0,0,0,0,0,0,-(cntr_hl*d/(h-cl-edgew)));//btm half  
+    
+  gfx_gradrect(x,y+h-edgew,w,edgew,gfx_r,gfx_g,gfx_b,1*d,0,0,0,0,0,0,0,-(.66*d/edgew));//bottom edge        
+  gfx_a=d;
+); 
+
+function edged_grad_h_backfill(x,y,w,h,color,edgew,cntr_hl,cl)local(a)
+( 
+ a=gfx_a; setcolor(0,1); gfx_rect(x,y,w,h); gfx_a=a;
+  edged_grad_h(x,y,w,h,color,edgew,cntr_hl,cl);
+);  
+
+function edged_grad_h_backfill(x,y,w,h,color,edgew,cntr_hl,cl) (edged_grad_h_backfill(x,y,w,h,color,edgew,cntr_hl,h/2) );
+
+function gradient_frame(x,y,w,h,color,edge,saturation,gradient_center,thickness)local(ar,ag,ab,_oa,i)
+(
+  _oa=gfx_a;
+  edged_grad_w(x,y+h/2,thickness,1,color,edge,saturation,gradient_center);
+  gfx_a=1;
+  i=0;
+  loop (thickness,
+    _xy(x+i,y+h/2);  
+    gfx_getpixel(ar,ag,ab); gfx_r=ar; gfx_g=ag; gfx_b=ab;
+    gfx_y-=1;
+    gfx_lineto(x+i,y+i);
+    gfx_lineto(x+w-i,y+i); 
+    gfx_lineto(x+w-i,y+h-i); 
+    gfx_lineto(x+i,y+h-i);
+    gfx_lineto(x+i,y+(h/2)+1);
+    i+=1;
+  );
+  gfx_a=_oa;
+);
+
+function edged_grad_h_frame(x,y,w,h,color,edge,saturation,gradient_center)local(ar,ag,ab,_oa,i)
+( 
+  _oa=gfx_a;
+  edged_grad_h(x,y,w,h,color,edge,saturation,gradient_center);
+  gfx_a=1;
+  i=0;
+  loop (edge,
+  _xy(x+i,y+i);  
+  gfx_getpixel(ar,ag,ab); gfx_r=ar; gfx_g=ag; gfx_b=ab;
+  //gfx_y-=1;
+  gfx_lineto(x+i,y+w-i);
+  gfx_lineto(x+w-i,y+i); 
+  gfx_lineto(x+w-i,y+h-i); 
+  gfx_lineto(x+i,y+h-i);
+  gfx_lineto(x+i,y+(h/2)+1);
+  i+=1;
+  );
+  gfx_a=_oa;
+);
+//Modulated underlay
+
+function modulated_horizontal_gradient(x,y,w,h,color,edge,saturation,gradient_center,q)local(i)
+(
+  q > 0 ? (  i=q;      loop(w/q,     edged_grad_h(x  ,y,i,h,color,edge,saturation,gradient_center);     i+=q;);  );
+  q < 0 ? (  i=abs(q); loop(w/abs(q),edged_grad_h(x-i,y,i,h,color,edge,saturation,gradient_center);i+=abs(q););  );      
+);
+
+function modulated_horizontal_underlay(x,y,w,h,color,edge,saturation,gradient_center,q,mod_width,mod2_width)
+(
+  modulated_horizontal_gradient(x,  y, mod_width,h,color,edge,saturation,gradient_center, q);
+  modulated_horizontal_gradient(x+w,y,mod2_width,h,color,edge,saturation,gradient_center,-q);
+);
+
+function modulated_horizontal_underlay(x,y,w,h,color,edge,saturation,gradient_center,q,mod_width,mod2_width,x2,mod3_width)
+(
+  modulated_horizontal_underlay(x, y,  x2,h,color,edge,saturation,gradient_center,q, mod_width,mod2_width);
+  modulated_horizontal_underlay(x2,y,w-x2,h,color,edge,saturation,gradient_center,q,mod2_width,mod3_width);
+);
+
+function modulated_horizontal_underlay(x,y,w,h,color,edge,saturation,gradient_center,q,mod_width,mod2_width,x2,mod3_width,x3,mod4_width)
+(
+  modulated_horizontal_underlay(x,y,w,h,color,edge,saturation,gradient_center,q,mod_width,mod2_width,x2,mod3_width);
+  modulated_horizontal_underlay(x3,y, w-x3,h,color,edge,saturation,gradient_center,q,mod3_width,mod4_width);
+);
+
+function modulated_horizontal_underlay(x,y,w,h,color,edge,saturation,gradient_center,q,mod_width,mod2_width,x2,mod3_width,x3,mod4_width,x4,mod5_width)
+(
+  modulated_horizontal_underlay(x,y,w,h,color,edge,saturation,gradient_center,q,mod_width,mod2_width,x2,mod3_width,x3,mod4_width);
+  modulated_horizontal_underlay(x4,y, w-x4,h,color,edge,saturation,gradient_center,q,mod_width4,mod5_width);
+);
+
+
+
+
