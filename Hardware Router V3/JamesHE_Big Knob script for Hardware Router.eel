@@ -123,42 +123,32 @@ function setcolor(r,g,b)
   ( gfx_r=r/255; gfx_g=g/255; gfx_b=b/255; );
 function setcolor(r,g,b,a)
   ( setcolor(r,g,b); gfx_a=a );
-
-function edged_grad_h(x,y,w,h,color,edgew,cntr_hl,cl)local(d,thy,hw,bhy,bey)
+//horizontal gradient
+function edged_grad_h(x,y,w,h,color,edge,saturation,gradient_center)local(d,cl,cntr_hl,edgew)
 (
-  cl*=h;
-  cl|=0;
-  //cl=max(1,cl);
+  cntr_hl=saturation; cl=gradient_center; edgew=edge;
+  cl*=h; cl|=0; //cl=max(1,cl);
   d=gfx_a;
   color != -1 ? setcolor(color);
-  edgew>=h/2? edgew=h/2-1;
-  thy=y+edgew;//top half y
-  hw=(((h-edgew*2)+1)*cl) /2;//top half height
-  bhy=thy+hw;//btm half y
-  bey=bhy+hw;//btm edge y  
-  gfx_gradrect(x,y,w,edgew,gfx_r,gfx_g,gfx_b,0.33*d,0,0,0,0,0,0,0,.66*d/edgew);//top edge  
-  
+  edgew>=h/2? edgew=h/2-1; 
+  gfx_gradrect(x,y,w,edgew,gfx_r,gfx_g,gfx_b,0.33*d,0,0,0,0,0,0,0,.66*d/edgew);//top edge    
   gfx_gradrect(x,y+edgew,w,(cl-edgew),gfx_r,gfx_g,gfx_b,1*d,0,0,0,0,0,0,0,(cntr_hl*d/(cl-edgew)));//top half
-  gfx_gradrect(x,y+cl,w,(h-cl)-edgew,gfx_r,gfx_g,gfx_b,(cntr_hl+1)*d,0,0,0,0,0,0,0,-(cntr_hl*d/(h-cl-edgew)));//btm half  
-      
+  gfx_gradrect(x,y+cl,w,(h-cl)-edgew,gfx_r,gfx_g,gfx_b,(cntr_hl+1)*d,0,0,0,0,0,0,0,-(cntr_hl*d/(h-cl-edgew)));//btm half        
   gfx_gradrect(x,y+h-edgew,w,edgew,gfx_r,gfx_g,gfx_b,1*d,0,0,0,0,0,0,0,-(.66*d/edgew));//bottom edge        
   gfx_a=d;
 );    
-function edged_grad_w(x,y,w,h,color,edge,saturation,gradient_center)local(d,cl,cntr_hl)
+//vertical gradient
+function edged_grad_w(x,y,w,h,color,edge,saturation,gradient_center)local(d,cl,cntr_hl,edgew)
 (
-  cntr_hl=saturation;
-  cl=gradient_center;
-  cl*=w; 
-  //cl=max(1,cl)|0;
+  cntr_hl=saturation; cl=gradient_center; edgew=edge;
+  cl*=w; cl|=0; //cl=max(1,cl)|0;
   d=gfx_a;
   color != -1 ? setcolor(color);
   edgew>=w/2? edgew=w/2-1;  
-  gfx_gradrect(x,y,edgew,h,gfx_r,gfx_g,gfx_b,0.33,0,0,0,.66*d/edgew,0,0,0,0);//left edge
-    
+  gfx_gradrect(x,y,edgew,h,gfx_r,gfx_g,gfx_b,0.33*d,0,0,0,.66*d/edgew,0,0,0,0);//left edge    
   gfx_gradrect(x+edgew,y,(cl-edgew),h,gfx_r,gfx_g,gfx_b,1*d,0,0,0,cntr_hl*d/(cl-edgew),0,0,0,0);//left half
-  gfx_gradrect(x+cl,y,(w-edgew-cl),h,gfx_r,gfx_g,gfx_b,(cntr_hl+1)*d,0,0,0,-cntr_hl*d/((w-cl)-(edgew)),0,0,0,0);//right half
-  
-  gfx_gradrect(x+w-edgew,y,edgew,h,gfx_r,gfx_g,gfx_b,1,0,0,0,-.66*d/edgew,0,0,0,0);//right edge
+  gfx_gradrect(x+cl,y,(w-edgew-cl),h,gfx_r,gfx_g,gfx_b,(cntr_hl+1)*d,0,0,0,-cntr_hl*d/((w-cl)-(edgew)),0,0,0,0);//right half  
+  gfx_gradrect(x+w-edgew,y,edgew,h,gfx_r,gfx_g,gfx_b,1*d,0,0,0,-.66*d/edgew,0,0,0,0);//right edge
 );
   
 function gradient_frame(x,y,w,h,color,edge,saturation,gradient_center,thickness)local(ar,ag,ab,_oa,i)
@@ -231,16 +221,69 @@ local(w,h,tempvalue,scale,scale2,ox,oy)
 /*                       DRAW GUI                         */
 ////////////////////////////////////////////////////////////
 
-
+//function to auto increment and recall offscreen buffers
+//gfx_dest=0 is always used as a temp buffer and can't be a "named" buffer
+// ************** will need some logic to not let buffer count get to 0!
+function gfxbuffer() 
+(
+  !buffercount ? buffercount=128; 
+  !this.buffer ? (buffercount-=1; this.buffer=buffercount;);
+  this.buffer
+);
+function __clearoffscreenbuffer(buffer)
+  (   
+  gfx_dest=buffer;gfx_setimgdim(buffer,-1,-1);  buffer; );
+   
+function __initoffscreenbuffer(buffer)
+  (  __clearoffscreenbuffer(buffer); 
+  gfx_dest=buffer;gfx_setimgdim(buffer,gfx_w,gfx_h);  buffer; );
+ 
+function __initoffscreenbuffer(buffer,w,h)
+  (  __clearoffscreenbuffer(buffer);  
+  gfx_dest=buffer;gfx_setimgdim(buffer,w,h);   buffer; );
  
 function background(border,bordercolor,facecolor,facealpha)
-local(x,y,w,h)
+local(init, sizecache,srcx, srcy, srcw, srch, destx, desty, destw, desth)
 (
-  gfx_a=facealpha; 
-  gfx_w >= gfx_h ? 
-    edged_grad_h(border-1,border-1,gfx_w-border,gfx_h-border,facecolor,5,.5,.5):
-    edged_grad_w(border-1,border-1,gfx_w-border,gfx_h-border,facecolor,25,.5,.5);  
-  gfx_a=1; gradient_frame(0,0,gfx_w,gfx_h,bordercolor,0,6,.9,border); 
+  !init ? (
+    gfx_dest=bgnd.gfxbuffer();
+    __initoffscreenbuffer(bgnd.gfxbuffer(),srcw=1024,srch=1024);
+    //gfx_a=.5;
+    //setcolor(facecolor);
+    gfx_rect(0,0,srcw,srch);
+    gfx_a=facealpha*.5; 
+    edged_grad_h(0,0,srcw,srch,facecolor,5,.75,.5);
+    gfx_a=facealpha*.5; 
+    edged_grad_w(0,0,srcw,srch,facecolor,5,.25,.5);  
+    sizecache=return_gfxsize(); colorcache=facecolor; alphacache=facealpha;
+    init=1; 
+  );  
+  gfx_dest=-1;
+  srcx=0; srcy=0; destx=border; desty=border; destw=gfx_w-(border*2); desth=gfx_h-(border*2);
+  gfx_blit(bgnd.gfxbuffer(),1,0, srcx, srcy, srcw, srch, destx, desty, destw, desth);
+  //gfx_blit(bgnd.gfxbuffer(),1,0, srcx, srcy, srcw, srch, destx, desty, destw, desth);
+  gfx_dest=-1;
+  gradient_frame(0,0,gfx_w,gfx_h,bordercolor,0,6,.9,border);
+  sizecache!=return_gfxsize() || colorcache!=facecolor || alphacache!=facealpha ? init=0;
+);
+
+function ToggleButton(var,w,h,txtstr,txtcolor)
+local(tw,th,ox,oy)
+(
+  ox=gfx_x; oy=gfx_y;
+  edged_grad_h(gfx_x,gfx_y,w,h,-1,1,.25,.15);
+  setcolor(0X121212);
+  gfx_roundrect(gfx_x,gfx_y,w,h,0,0);
+  setcolor(txtcolor); gfx_a=.8;
+  gfx_measurestr(txtstr,tw,th);
+  gfx_x+=w/2-tw/2; 
+  gfx_y+=h/2-th/2;
+  gfx_drawstr(txtstr);
+  _xy(ox,oy);
+  mouse_in_rect(ox,oy,w,h) && mouse_click(1) ? var ? var=0:var=1; 
+  //value;
+  var;
+
 );
 
 function run()
@@ -255,14 +298,18 @@ function run()
       i+=1;
     );
     
-    border=5; bordercolor=0x0C0C0B; facecolor=0x565758; facealpha=.55;
+    
+    
+    buttons=14;
+    gfx_setfont(1,"Microsoft Sans Serif",buttons-2);
+    border=2; bordercolor=0x0C0C0B; facecolor=0x565758; facealpha=.55;
     //facecolor=0X323234;
-    facecolor=TrackFX_GetParam(mt, 0x1000000+slot, 22, c.minvalOut, c.maxvalOut);
-    facealpha=TrackFX_GetParam(mt, 0x1000000+slot, 23, c.minvalOut, c.maxvalOut);
+    facecolor=TrackFX_GetParam(mt, 0x1000000+slot, 24, c.minvalOut, c.maxvalOut);
+    facealpha=TrackFX_GetParam(mt, 0x1000000+slot, 25, c.minvalOut, c.maxvalOut);
     //facealpha*=100; facealpha|0; facealpha/=100;
     background(border,bordercolor,facecolor,facealpha);
     
-    _xy(gfx_w/2,gfx_h/2);
+    _xy(gfx_w/2,(gfx_h)/2);
     png0=gfx_loadimg(0,"\Effects/jHE-jS-master/Hardware Router V3/bigsilverknobb.png");
     png1=gfx_loadimg(1,"\Effects/jHE-jS-master/Hardware Router V3/bigsilverknobbdotb.png");
     
@@ -272,20 +319,79 @@ function run()
     //master volume control    
     mastervolume=TrackFX_GetParam(mt, 0x1000000+slot, 5, minvalOut, maxvalOut);   
     vardefault=0; varmin=-60; varmax=18; start=-270; end=90; 
-    size=90; inc=1;    
+    size=min(gfx_w,gfx_h)-buttons*2; inc=1;    
     mastervolume=png_knob_a(mastervolume,vardefault,varmin,varmax,start,end,png0,png1,size,inc);
     TrackFX_SetParam(mt, 0x1000000+slot, 5, mastervolume);    
     mastervolume=TrackFX_GetParam(mt, 0x1000000+slot, 5, minvalOut, maxvalOut);
 
     
-    mouse_in_rect(0,0,gfx_w,gfx_h) && mouse_dblclick(2,6) ? 
-      TrackFX_SetOpen(mt, 0x1000000+slot, (abs(TrackFX_GetOpen(mt, 0x1000000+slot))-1)*-1):
+    //mouse_in_rect(0,0,gfx_w,gfx_h) && mouse_dblclick(2,6) ? 
+    //  TrackFX_SetOpen(mt, 0x1000000+slot, (abs(TrackFX_GetOpen(mt, 0x1000000+slot))-1)*-1):
     
     
+    mute=TrackFX_GetParam(mt, 0x1000000+slot, 7, minvalOut, maxvalOut);
+    mainon=TrackFX_GetParam(mt, 0x1000000+slot, 11, minvalOut, maxvalOut);
+    phoneson=TrackFX_GetParam(mt, 0x1000000+slot, 12, minvalOut, maxvalOut);
+    auxon=TrackFX_GetParam(mt, 0x1000000+slot, 13, minvalOut, maxvalOut);
+    dim=TrackFX_GetParam(mt, 0x1000000+slot, 22, minvalOut, maxvalOut);
+    dimlev=TrackFX_GetParam(mt, 0x1000000+slot, 23, minvalOut, maxvalOut);
+    
+    textcolor=0;
+    buttonwidth=(gfx_w-border*2)/3;
+    buttonwidth-=1;
+    gfx_x=gfx_y=border+1;
+    gfx_x+=1;
+    
+    
+    mute ? setcolor(0XFF2222):setcolor(0X452222);
+    mute ? textcolor=(0X121212):textcolor=0XBBBBBB; 
+    mute ? gfx_a=1;gfx_a=.5;  
+    mute=ToggleButton(mute,buttonwidth,buttons-border,"MUTE",textcolor);
+    TrackFX_SetParam(mt, 0x1000000+slot, 7, mute);
+    
+    gfx_x+=buttonwidth+1;
+    setcolor(facecolor);
+    //str=#; window
+    window=ToggleButton(window,buttonwidth,buttons-border,"OPEN",txtcolor);
+    window ? TrackFX_SetOpen(mt, 0x1000000+slot, (abs(TrackFX_GetOpen(mt, 0x1000000+slot))-1)*-1);
+    window=0;
+    
+    gfx_x+=buttonwidth+1;
+    gfx_y=border+1;
+    dim ? setcolor(0XFFFF22):setcolor(0X444410);
+    dim ? textcolor=(0X121212):textcolor=0XBBBBBB; 
+    dim ? gfx_a=1;gfx_a=.5;    
+    dim=ToggleButton(dim,buttonwidth,buttons-border,"DIM",textcolor);
+    TrackFX_SetParam(mt, 0x1000000+slot, 22, dim);
+    
+    
+    gfx_x=border+1;
+    gfx_y=gfx_h-border-buttons;
+    mainon ? setcolor(0X22FF22):setcolor(0X104410);
+    mainon ? textcolor=(0X121212):textcolor=0XBBBBBB; 
+    mainon ? gfx_a=1;gfx_a=.5;
+    mainon=ToggleButton(mainon,buttonwidth,buttons-border,"MAIN",textcolor);
+    TrackFX_SetParam(mt, 0x1000000+slot, 11, mainon);
+    
+    gfx_x+=buttonwidth;
+    gfx_y=gfx_h-border-buttons;
+    phoneson ? setcolor(0X22FF22):setcolor(0X104410);
+    phoneson ? textcolor=(0X121212):textcolor=0XBBBBBB; 
+    phoneson ? gfx_a=1;gfx_a=.5;
+    phoneson=ToggleButton(phoneson,buttonwidth,buttons-border,"PHONES",textcolor);
+    TrackFX_SetParam(mt, 0x1000000+slot, 12, phoneson);
+    
+    gfx_x+=buttonwidth;
+    gfx_y=gfx_h-border-buttons;
+    auxon ? setcolor(0X22FF22):setcolor(0X104410);
+    auxon ? textcolor=(0X121212):textcolor=0XBBBBBB; 
+    auxon ? gfx_a=1;gfx_a=.5;
+    auxon=ToggleButton(auxon,buttonwidth,buttons-border,"AUX",textcolor);
+    TrackFX_SetParam(mt, 0x1000000+slot, 13, auxon);
+        
     _dock.refresh_ext_option(#section,"dockstate",gfx_dock(-1));    
     run_defer("run()");
 );
-
 
 
 
